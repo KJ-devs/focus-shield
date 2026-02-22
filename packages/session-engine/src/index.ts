@@ -1,5 +1,13 @@
-// @focus-shield/session-engine
-// Session state machine, timer, and presets
-// Implementation in US-02
+export { SessionStateMachine } from "./state-machine";
+export type { StateChangeCallback, StateChangeEvent } from "./state-machine";
 
-export {};
+export { PrecisionTimer } from "./timer";
+export type { TimerTickCallback } from "./timer";
+
+export { PRESETS, getPreset, getAllPresets } from "./presets";
+
+export { calculateFocusScore } from "./score";
+export type { ScoreInput } from "./score";
+
+export { SessionRunner } from "./session-runner";
+export type { SessionEventCallback } from "./session-runner";
