@@ -1,0 +1,36 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USERNAME=focus
+      - DB_PASSWORD=focus
+      - DB_NAME=focus_shield
+      - PORT=3001
+      - CORS_ORIGINS=http://localhost:1420
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=focus
+      - POSTGRES_PASSWORD=focus
+      - POSTGRES_DB=focus_shield
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U focus -d focus_shield"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
