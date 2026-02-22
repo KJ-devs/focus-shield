@@ -6,6 +6,7 @@ import { SessionLauncherPage } from "@/pages/SessionLauncherPage";
 import { BlocklistsPage } from "@/pages/BlocklistsPage";
 import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { ProfilesPage } from "@/pages/ProfilesPage";
 
 export function App() {
   return (
@@ -17,6 +18,7 @@ export function App() {
           <Route path="launch" element={<SessionLauncherPage />} />
           <Route path="blocklists" element={<BlocklistsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="profiles" element={<ProfilesPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

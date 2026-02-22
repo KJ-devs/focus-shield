@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useThemeStore } from "@/stores/theme-store";
+import { ProfileSwitcher } from "@/components/profiles/ProfileSwitcher";
 
 interface NavItem {
   to: string;
@@ -12,6 +13,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/sessions", label: "Sessions", icon: "\u25B6\uFE0F" },
   { to: "/blocklists", label: "Blocklists", icon: "\uD83D\uDEE1\uFE0F" },
   { to: "/analytics", label: "Analytics", icon: "\uD83D\uDCCA" },
+  { to: "/profiles", label: "Profiles", icon: "\uD83D\uDC64" },
   { to: "/settings", label: "Settings", icon: "\u2699\uFE0F" },
 ];
 
@@ -44,6 +46,10 @@ export function Sidebar() {
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">
           Focus Shield
         </h1>
+      </div>
+
+      <div className="mb-2 border-b border-gray-200 pb-2 dark:border-gray-800">
+        <ProfileSwitcher />
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
