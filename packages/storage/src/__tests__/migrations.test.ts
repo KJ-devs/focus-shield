@@ -282,7 +282,55 @@ describe("Migration system", () => {
       runMigrations(db, allMigrations);
       expect(() => runMigrations(db, allMigrations)).not.toThrow();
 
-      expect(getCurrentVersion(db)).toBe(2);
+      expect(getCurrentVersion(db)).toBe(3);
+    });
+  });
+
+  describe("Schema migration v3 (gamification)", () => {
+    it("creates gamification tables", () => {
+      runMigrations(db, allMigrations);
+
+      // Check user_progress table
+      const progressCols = db
+        .all<{ name: string }>("PRAGMA table_info(user_progress)")
+        .map((c) => c.name);
+      expect(progressCols).toContain("profile_id");
+      expect(progressCols).toContain("total_xp");
+      expect(progressCols).toContain("achievement_progress");
+
+      // Check xp_history table
+      const xpCols = db
+        .all<{ name: string }>("PRAGMA table_info(xp_history)")
+        .map((c) => c.name);
+      expect(xpCols).toContain("profile_id");
+      expect(xpCols).toContain("session_id");
+      expect(xpCols).toContain("amount");
+
+      // Check streak_freezes table
+      const freezeCols = db
+        .all<{ name: string }>("PRAGMA table_info(streak_freezes)")
+        .map((c) => c.name);
+      expect(freezeCols).toContain("profile_id");
+      expect(freezeCols).toContain("date");
+    });
+
+    it("records migration v3 in _migrations table", () => {
+      runMigrations(db, allMigrations);
+
+      const row = db.get<{ version: number; name: string }>(
+        "SELECT version, name FROM _migrations WHERE version = 3",
+      );
+
+      expect(row).toBeDefined();
+      expect(row!.version).toBe(3);
+      expect(row!.name).toBe("gamification_tables");
+    });
+
+    it("migration v3 is idempotent (IF NOT EXISTS)", () => {
+      runMigrations(db, allMigrations);
+      expect(() => runMigrations(db, allMigrations)).not.toThrow();
+
+      expect(getCurrentVersion(db)).toBe(3);
     });
   });
 });

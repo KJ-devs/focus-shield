@@ -121,6 +121,54 @@ export const indexesMigration: Migration = {
 };
 
 /**
+ * Migration v3: Add gamification tables for XP, achievements, and streak freezes.
+ */
+export const gamificationMigration: Migration = {
+  version: 3,
+  name: "gamification_tables",
+  up: `
+    CREATE TABLE IF NOT EXISTS user_progress (
+      profile_id TEXT PRIMARY KEY,
+      total_xp INTEGER NOT NULL DEFAULT 0,
+      achievement_progress TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS xp_history (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      session_id TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      timestamp INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS streak_freezes (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      date TEXT NOT NULL,
+      UNIQUE(profile_id, date)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_xp_history_profile ON xp_history(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_xp_history_timestamp ON xp_history(timestamp);
+    CREATE INDEX IF NOT EXISTS idx_streak_freezes_profile ON streak_freezes(profile_id);
+  `,
+  down: `
+    DROP INDEX IF EXISTS idx_streak_freezes_profile;
+    DROP INDEX IF EXISTS idx_xp_history_timestamp;
+    DROP INDEX IF EXISTS idx_xp_history_profile;
+    DROP TABLE IF EXISTS streak_freezes;
+    DROP TABLE IF EXISTS xp_history;
+    DROP TABLE IF EXISTS user_progress;
+  `,
+};
+
+/**
  * All migrations in order. Add new migrations to this array.
  */
-export const allMigrations: Migration[] = [initialMigration, indexesMigration];
+export const allMigrations: Migration[] = [
+  initialMigration,
+  indexesMigration,
+  gamificationMigration,
+];

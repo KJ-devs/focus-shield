@@ -6,8 +6,10 @@ import { SessionRunRepository } from "./repositories/session-run-repository";
 import { BlocklistRepository } from "./repositories/blocklist-repository";
 import { ProfileRepository } from "./repositories/profile-repository";
 import { StatsRepository } from "./repositories/stats-repository";
+import { GamificationRepository } from "./repositories/gamification-repository";
 import { StatsAggregator } from "./aggregator";
 import { DataExporter } from "./exporter";
+import { StreakCalculator } from "./gamification/streaks";
 
 /**
  * Main entry point for the storage layer.
@@ -19,6 +21,8 @@ export class Storage {
   readonly blocklists: BlocklistRepository;
   readonly profiles: ProfileRepository;
   readonly stats: StatsRepository;
+  readonly gamification: GamificationRepository;
+  readonly streaks: StreakCalculator;
   readonly aggregator: StatsAggregator;
   readonly exporter: DataExporter;
 
@@ -37,6 +41,8 @@ export class Storage {
     this.blocklists = new BlocklistRepository(this.db);
     this.profiles = new ProfileRepository(this.db);
     this.stats = new StatsRepository(this.db);
+    this.gamification = new GamificationRepository(this.db);
+    this.streaks = new StreakCalculator(this.db);
     this.aggregator = new StatsAggregator(this.db);
     this.exporter = new DataExporter(this.db);
   }
