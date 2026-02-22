@@ -1,7 +1,23 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Layout } from "@/components/layout/Layout";
+import { HomePage } from "@/pages/HomePage";
+import { SessionsPage } from "@/pages/SessionsPage";
+import { BlocklistsPage } from "@/pages/BlocklistsPage";
+import { AnalyticsPage } from "@/pages/AnalyticsPage";
+import { SettingsPage } from "@/pages/SettingsPage";
+
 export function App() {
   return (
-    <div className="flex h-screen items-center justify-center">
-      <h1 className="text-4xl font-bold text-focus-600">Focus Shield</h1>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<HomePage />} />
+          <Route path="sessions" element={<SessionsPage />} />
+          <Route path="blocklists" element={<BlocklistsPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
