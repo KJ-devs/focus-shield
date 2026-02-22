@@ -6,6 +6,8 @@ import { SessionRunRepository } from "./repositories/session-run-repository";
 import { BlocklistRepository } from "./repositories/blocklist-repository";
 import { ProfileRepository } from "./repositories/profile-repository";
 import { StatsRepository } from "./repositories/stats-repository";
+import { StatsAggregator } from "./aggregator";
+import { DataExporter } from "./exporter";
 
 /**
  * Main entry point for the storage layer.
@@ -17,6 +19,8 @@ export class Storage {
   readonly blocklists: BlocklistRepository;
   readonly profiles: ProfileRepository;
   readonly stats: StatsRepository;
+  readonly aggregator: StatsAggregator;
+  readonly exporter: DataExporter;
 
   private db: DatabaseAdapter;
 
@@ -33,6 +37,8 @@ export class Storage {
     this.blocklists = new BlocklistRepository(this.db);
     this.profiles = new ProfileRepository(this.db);
     this.stats = new StatsRepository(this.db);
+    this.aggregator = new StatsAggregator(this.db);
+    this.exporter = new DataExporter(this.db);
   }
 
   /** Close the underlying database connection. */

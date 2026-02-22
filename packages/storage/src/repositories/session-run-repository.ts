@@ -181,6 +181,46 @@ export class SessionRunRepository {
     );
   }
 
+  getByDateRange(
+    startDate: string,
+    endDate: string,
+    profileId?: string,
+  ): SessionRun[] {
+    if (profileId) {
+      const rows = this.db.all<SessionRunRow>(
+        `SELECT * FROM session_runs
+         WHERE started_at >= ? AND started_at < ?
+         AND profile_id = ?
+         ORDER BY started_at ASC`,
+        [`${startDate}T00:00:00.000Z`, `${endDate}T23:59:59.999Z`, profileId],
+      );
+      return rows.map(rowToSessionRun);
+    }
+    const rows = this.db.all<SessionRunRow>(
+      `SELECT * FROM session_runs
+       WHERE started_at >= ? AND started_at < ?
+       ORDER BY started_at ASC`,
+      [`${startDate}T00:00:00.000Z`, `${endDate}T23:59:59.999Z`],
+    );
+    return rows.map(rowToSessionRun);
+  }
+
+  getCompletedBetween(
+    startDate: string,
+    endDate: string,
+    profileId: string,
+  ): SessionRun[] {
+    const rows = this.db.all<SessionRunRow>(
+      `SELECT * FROM session_runs
+       WHERE started_at >= ? AND started_at < ?
+       AND profile_id = ?
+       AND status = 'completed'
+       ORDER BY started_at ASC`,
+      [`${startDate}T00:00:00.000Z`, `${endDate}T23:59:59.999Z`, profileId],
+    );
+    return rows.map(rowToSessionRun);
+  }
+
   delete(id: string): void {
     this.db.run("DELETE FROM session_runs WHERE id = ?", [id]);
   }

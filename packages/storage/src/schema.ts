@@ -96,6 +96,31 @@ export const initialMigration: Migration = {
 };
 
 /**
+ * Migration v2: Add indexes for better query performance.
+ * Covers session_runs, daily_stats, and sessions lookups.
+ */
+export const indexesMigration: Migration = {
+  version: 2,
+  name: "add_indexes",
+  up: `
+    CREATE INDEX IF NOT EXISTS idx_session_runs_session_id ON session_runs(session_id);
+    CREATE INDEX IF NOT EXISTS idx_session_runs_profile_id ON session_runs(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_session_runs_started_at ON session_runs(started_at);
+    CREATE INDEX IF NOT EXISTS idx_session_runs_status ON session_runs(status);
+    CREATE INDEX IF NOT EXISTS idx_daily_stats_profile_id ON daily_stats(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_profile_id ON sessions(profile_id);
+  `,
+  down: `
+    DROP INDEX IF EXISTS idx_session_runs_session_id;
+    DROP INDEX IF EXISTS idx_session_runs_profile_id;
+    DROP INDEX IF EXISTS idx_session_runs_started_at;
+    DROP INDEX IF EXISTS idx_session_runs_status;
+    DROP INDEX IF EXISTS idx_daily_stats_profile_id;
+    DROP INDEX IF EXISTS idx_sessions_profile_id;
+  `,
+};
+
+/**
  * All migrations in order. Add new migrations to this array.
  */
-export const allMigrations: Migration[] = [initialMigration];
+export const allMigrations: Migration[] = [initialMigration, indexesMigration];

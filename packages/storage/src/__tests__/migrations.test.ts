@@ -2,6 +2,7 @@ import { createDatabase } from "../database";
 import type { DatabaseAdapter } from "../database";
 import { runMigrations, getCurrentVersion } from "../migrations";
 import type { Migration } from "../migrations";
+import { allMigrations } from "../schema";
 
 describe("Migration system", () => {
   let db: DatabaseAdapter;
@@ -220,6 +221,68 @@ describe("Migration system", () => {
       expect(() => runMigrations(db, [badMigration])).toThrow(
         /Migration 1 \(will_fail\) failed/,
       );
+    });
+  });
+
+  describe("Schema migration v2 (indexes)", () => {
+    it("creates all expected indexes after running allMigrations", () => {
+      runMigrations(db, allMigrations);
+
+      // Query sqlite_master for all indexes created by migration v2
+      const indexes = db.all<{ name: string; tbl_name: string }>(
+        "SELECT name, tbl_name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'",
+      );
+
+      const indexNames = indexes.map((idx) => idx.name);
+
+      // session_runs indexes
+      expect(indexNames).toContain("idx_session_runs_session_id");
+      expect(indexNames).toContain("idx_session_runs_profile_id");
+      expect(indexNames).toContain("idx_session_runs_started_at");
+      expect(indexNames).toContain("idx_session_runs_status");
+
+      // daily_stats index
+      expect(indexNames).toContain("idx_daily_stats_profile_id");
+
+      // sessions index
+      expect(indexNames).toContain("idx_sessions_profile_id");
+    });
+
+    it("indexes are on the correct tables", () => {
+      runMigrations(db, allMigrations);
+
+      const indexes = db.all<{ name: string; tbl_name: string }>(
+        "SELECT name, tbl_name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'",
+      );
+
+      const indexMap = new Map(indexes.map((idx) => [idx.name, idx.tbl_name]));
+
+      expect(indexMap.get("idx_session_runs_session_id")).toBe("session_runs");
+      expect(indexMap.get("idx_session_runs_profile_id")).toBe("session_runs");
+      expect(indexMap.get("idx_session_runs_started_at")).toBe("session_runs");
+      expect(indexMap.get("idx_session_runs_status")).toBe("session_runs");
+      expect(indexMap.get("idx_daily_stats_profile_id")).toBe("daily_stats");
+      expect(indexMap.get("idx_sessions_profile_id")).toBe("sessions");
+    });
+
+    it("records migration v2 in _migrations table", () => {
+      runMigrations(db, allMigrations);
+
+      const row = db.get<{ version: number; name: string }>(
+        "SELECT version, name FROM _migrations WHERE version = 2",
+      );
+
+      expect(row).toBeDefined();
+      expect(row!.version).toBe(2);
+      expect(row!.name).toBe("add_indexes");
+    });
+
+    it("migration v2 is idempotent (IF NOT EXISTS)", () => {
+      // Run migrations twice — should not throw
+      runMigrations(db, allMigrations);
+      expect(() => runMigrations(db, allMigrations)).not.toThrow();
+
+      expect(getCurrentVersion(db)).toBe(2);
     });
   });
 });

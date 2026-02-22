@@ -387,4 +387,206 @@ describe("SessionRunRepository", () => {
       expect(repo.getById("run-2")).toBeDefined();
     });
   });
+
+  describe("getByDateRange()", () => {
+    beforeEach(() => {
+      // Create runs across multiple dates
+      repo.create(
+        makeSessionRun({
+          id: "run-early",
+          startedAt: new Date("2025-06-10T10:00:00.000Z"),
+        }),
+      );
+      repo.create(
+        makeSessionRun({
+          id: "run-mid",
+          startedAt: new Date("2025-06-15T14:00:00.000Z"),
+        }),
+      );
+      repo.create(
+        makeSessionRun({
+          id: "run-late",
+          startedAt: new Date("2025-06-20T09:00:00.000Z"),
+        }),
+      );
+    });
+
+    it("returns runs within the specified date range", () => {
+      const results = repo.getByDateRange("2025-06-12", "2025-06-18");
+
+      expect(results).toHaveLength(1);
+      expect(results[0]!.id).toBe("run-mid");
+    });
+
+    it("returns all runs when range covers all dates", () => {
+      const results = repo.getByDateRange("2025-06-01", "2025-06-30");
+      expect(results).toHaveLength(3);
+    });
+
+    it("returns empty array when no runs in range", () => {
+      const results = repo.getByDateRange("2025-07-01", "2025-07-31");
+      expect(results).toEqual([]);
+    });
+
+    it("filters by profileId when provided", () => {
+      // Create a session and run for profile-2
+      sessionRepo.create(makeParentSession("session-2"));
+      repo.create(
+        makeSessionRun({
+          id: "run-p2",
+          sessionId: "session-2",
+          profileId: "profile-2",
+          startedAt: new Date("2025-06-15T10:00:00.000Z"),
+        }),
+      );
+
+      const results = repo.getByDateRange(
+        "2025-06-12",
+        "2025-06-18",
+        "profile-1",
+      );
+      expect(results).toHaveLength(1);
+      expect(results[0]!.profileId).toBe("profile-1");
+
+      const resultsP2 = repo.getByDateRange(
+        "2025-06-12",
+        "2025-06-18",
+        "profile-2",
+      );
+      expect(resultsP2).toHaveLength(1);
+      expect(resultsP2[0]!.profileId).toBe("profile-2");
+    });
+
+    it("returns all profiles when profileId is omitted", () => {
+      sessionRepo.create(makeParentSession("session-2"));
+      repo.create(
+        makeSessionRun({
+          id: "run-p2",
+          sessionId: "session-2",
+          profileId: "profile-2",
+          startedAt: new Date("2025-06-15T10:00:00.000Z"),
+        }),
+      );
+
+      const results = repo.getByDateRange("2025-06-12", "2025-06-18");
+      expect(results).toHaveLength(2); // run-mid + run-p2
+    });
+
+    it("handles boundary dates (start inclusive, end inclusive)", () => {
+      // Run at exactly 2025-06-10T10:00:00.000Z — startDate = 2025-06-10
+      const results = repo.getByDateRange("2025-06-10", "2025-06-10");
+      expect(results).toHaveLength(1);
+      expect(results[0]!.id).toBe("run-early");
+    });
+
+    it("returns results sorted by started_at ASC", () => {
+      const results = repo.getByDateRange("2025-06-01", "2025-06-30");
+      expect(results).toHaveLength(3);
+      expect(results[0]!.id).toBe("run-early");
+      expect(results[1]!.id).toBe("run-mid");
+      expect(results[2]!.id).toBe("run-late");
+    });
+  });
+
+  describe("getCompletedBetween()", () => {
+    beforeEach(() => {
+      repo.create(
+        makeSessionRun({
+          id: "run-completed-1",
+          status: "completed",
+          startedAt: new Date("2025-06-15T09:00:00.000Z"),
+        }),
+      );
+      repo.create(
+        makeSessionRun({
+          id: "run-aborted",
+          status: "aborted",
+          startedAt: new Date("2025-06-15T14:00:00.000Z"),
+        }),
+      );
+      repo.create(
+        makeSessionRun({
+          id: "run-completed-2",
+          status: "completed",
+          startedAt: new Date("2025-06-15T18:00:00.000Z"),
+        }),
+      );
+      repo.create(
+        makeSessionRun({
+          id: "run-active",
+          status: "active",
+          startedAt: new Date("2025-06-15T20:00:00.000Z"),
+        }),
+      );
+    });
+
+    it("returns only completed runs", () => {
+      const results = repo.getCompletedBetween(
+        "2025-06-15",
+        "2025-06-15",
+        "profile-1",
+      );
+
+      expect(results).toHaveLength(2);
+      expect(results.every((r) => r.status === "completed")).toBe(true);
+    });
+
+    it("filters by profile", () => {
+      sessionRepo.create(makeParentSession("session-2"));
+      repo.create(
+        makeSessionRun({
+          id: "run-p2-completed",
+          sessionId: "session-2",
+          profileId: "profile-2",
+          status: "completed",
+          startedAt: new Date("2025-06-15T10:00:00.000Z"),
+        }),
+      );
+
+      const resultsP1 = repo.getCompletedBetween(
+        "2025-06-15",
+        "2025-06-15",
+        "profile-1",
+      );
+      expect(resultsP1).toHaveLength(2);
+
+      const resultsP2 = repo.getCompletedBetween(
+        "2025-06-15",
+        "2025-06-15",
+        "profile-2",
+      );
+      expect(resultsP2).toHaveLength(1);
+      expect(resultsP2[0]!.id).toBe("run-p2-completed");
+    });
+
+    it("returns empty array when no completed runs in range", () => {
+      const results = repo.getCompletedBetween(
+        "2025-07-01",
+        "2025-07-31",
+        "profile-1",
+      );
+      expect(results).toEqual([]);
+    });
+
+    it("handles boundary dates correctly", () => {
+      // Runs on 2025-06-15 — query exactly that day
+      const results = repo.getCompletedBetween(
+        "2025-06-15",
+        "2025-06-15",
+        "profile-1",
+      );
+      expect(results).toHaveLength(2);
+    });
+
+    it("returns results sorted by started_at ASC", () => {
+      const results = repo.getCompletedBetween(
+        "2025-06-15",
+        "2025-06-15",
+        "profile-1",
+      );
+      expect(results).toHaveLength(2);
+      expect(results[0]!.id).toBe("run-completed-1");
+      expect(results[1]!.id).toBe("run-completed-2");
+    });
+  });
 });
