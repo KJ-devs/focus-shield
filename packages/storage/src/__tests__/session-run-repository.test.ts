@@ -170,17 +170,17 @@ describe("SessionRunRepository", () => {
         expect(attempt.timestamp).toBeInstanceOf(Date);
       }
 
-      expect(result.distractionAttempts[0].timestamp.toISOString()).toBe(
+      expect(result.distractionAttempts[0]!.timestamp.toISOString()).toBe(
         "2025-06-15T10:05:00.000Z",
       );
-      expect(result.distractionAttempts[0].type).toBe("domain");
-      expect(result.distractionAttempts[0].target).toBe("reddit.com");
-      expect(result.distractionAttempts[0].blocked).toBe(true);
+      expect(result.distractionAttempts[0]!.type).toBe("domain");
+      expect(result.distractionAttempts[0]!.target).toBe("reddit.com");
+      expect(result.distractionAttempts[0]!.blocked).toBe(true);
 
-      expect(result.distractionAttempts[1].type).toBe("process");
-      expect(result.distractionAttempts[1].target).toBe("discord");
+      expect(result.distractionAttempts[1]!.type).toBe("process");
+      expect(result.distractionAttempts[1]!.target).toBe("discord");
 
-      expect(result.distractionAttempts[2].blocked).toBe(false);
+      expect(result.distractionAttempts[2]!.blocked).toBe(false);
     });
   });
 
@@ -221,10 +221,10 @@ describe("SessionRunRepository", () => {
         expect(attempt.timestamp).toBeInstanceOf(Date);
       }
 
-      expect(result.unlockAttempts[0].method).toBe("token");
-      expect(result.unlockAttempts[0].success).toBe(false);
-      expect(result.unlockAttempts[2].method).toBe("master_key");
-      expect(result.unlockAttempts[2].success).toBe(true);
+      expect(result.unlockAttempts[0]!.method).toBe("token");
+      expect(result.unlockAttempts[0]!.success).toBe(false);
+      expect(result.unlockAttempts[2]!.method).toBe("master_key");
+      expect(result.unlockAttempts[2]!.success).toBe(true);
     });
   });
 
@@ -319,7 +319,7 @@ describe("SessionRunRepository", () => {
       repo.update("run-1", { distractionAttempts: attempts });
       const result = repo.getById("run-1")!;
       expect(result.distractionAttempts).toHaveLength(1);
-      expect(result.distractionAttempts[0].target).toBe("twitter.com");
+      expect(result.distractionAttempts[0]!.target).toBe("twitter.com");
     });
 
     it("updates unlockAttempts", () => {
@@ -333,7 +333,7 @@ describe("SessionRunRepository", () => {
       repo.update("run-1", { unlockAttempts: attempts });
       const result = repo.getById("run-1")!;
       expect(result.unlockAttempts).toHaveLength(1);
-      expect(result.unlockAttempts[0].method).toBe("emergency");
+      expect(result.unlockAttempts[0]!.method).toBe("emergency");
     });
 
     it("updates multiple fields at once", () => {

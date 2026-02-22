@@ -165,7 +165,7 @@ describe("Storage facade", () => {
       expect(retrievedRun).toBeDefined();
       expect(retrievedRun!.status).toBe("active");
       expect(retrievedRun!.distractionAttempts).toHaveLength(1);
-      expect(retrievedRun!.distractionAttempts[0].timestamp).toBeInstanceOf(
+      expect(retrievedRun!.distractionAttempts[0]!.timestamp).toBeInstanceOf(
         Date,
       );
 

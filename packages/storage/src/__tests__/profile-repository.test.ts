@@ -121,8 +121,8 @@ describe("ProfileRepository", () => {
       const results = repo.getAll();
 
       expect(results).toHaveLength(1);
-      expect(results[0].createdAt).toBeInstanceOf(Date);
-      expect(Array.isArray(results[0].defaultBlocklists)).toBe(true);
+      expect(results[0]!.createdAt).toBeInstanceOf(Date);
+      expect(Array.isArray(results[0]!.defaultBlocklists)).toBe(true);
     });
   });
 

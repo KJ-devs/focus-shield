@@ -214,15 +214,15 @@ describe("StatsRepository", () => {
     it("returns stats within the date range (inclusive)", () => {
       const results = repo.getRange("2025-06-12", "2025-06-16", "profile-1");
       expect(results).toHaveLength(3);
-      expect(results[0].date).toBe("2025-06-12");
-      expect(results[1].date).toBe("2025-06-14");
-      expect(results[2].date).toBe("2025-06-16");
+      expect(results[0]!.date).toBe("2025-06-12");
+      expect(results[1]!.date).toBe("2025-06-14");
+      expect(results[2]!.date).toBe("2025-06-16");
     });
 
     it("returns results sorted by date ascending", () => {
       const results = repo.getRange("2025-06-10", "2025-06-18", "profile-1");
       for (let i = 1; i < results.length; i++) {
-        expect(results[i].date > results[i - 1].date).toBe(true);
+        expect(results[i]!.date > results[i - 1]!.date).toBe(true);
       }
     });
 
@@ -234,7 +234,7 @@ describe("StatsRepository", () => {
     it("returns single result when range matches exactly one date", () => {
       const results = repo.getRange("2025-06-14", "2025-06-14", "profile-1");
       expect(results).toHaveLength(1);
-      expect(results[0].date).toBe("2025-06-14");
+      expect(results[0]!.date).toBe("2025-06-14");
     });
 
     it("filters by profileId", () => {
@@ -267,9 +267,9 @@ describe("StatsRepository", () => {
       repo.upsert(makeStats({ date: "2025-06-12" }));
 
       const results = repo.getAll("profile-1");
-      expect(results[0].date).toBe("2025-06-10");
-      expect(results[1].date).toBe("2025-06-12");
-      expect(results[2].date).toBe("2025-06-15");
+      expect(results[0]!.date).toBe("2025-06-10");
+      expect(results[1]!.date).toBe("2025-06-12");
+      expect(results[2]!.date).toBe("2025-06-15");
     });
 
     it("returns empty array for profile with no stats", () => {
@@ -293,9 +293,9 @@ describe("StatsRepository", () => {
       const results = repo.getAll("profile-1");
 
       expect(results).toHaveLength(1);
-      expect(Array.isArray(results[0].topDistractors)).toBe(true);
-      expect(typeof results[0].totalFocusMinutes).toBe("number");
-      expect(typeof results[0].averageFocusScore).toBe("number");
+      expect(Array.isArray(results[0]!.topDistractors)).toBe(true);
+      expect(typeof results[0]!.totalFocusMinutes).toBe("number");
+      expect(typeof results[0]!.averageFocusScore).toBe("number");
     });
   });
 });

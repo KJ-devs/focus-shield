@@ -179,7 +179,7 @@ describe("BlocklistRepository", () => {
     it("returns single result for category with one match", () => {
       const results = repo.getByCategory("gaming");
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe("bl-2");
+      expect(results[0]!.id).toBe("bl-2");
     });
   });
 
