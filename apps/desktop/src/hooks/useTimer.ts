@@ -2,12 +2,12 @@ import { useEffect } from "react";
 import { useSessionStore } from "@/stores/session-store";
 
 export function useTimer(): void {
-  const isSessionActive = useSessionStore((s) => s.isSessionActive);
+  const phase = useSessionStore((s) => s.phase);
   const tick = useSessionStore((s) => s.tick);
 
   useEffect(() => {
-    if (!isSessionActive) return;
+    if (phase !== "active" && phase !== "unlock-prompt") return;
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [isSessionActive, tick]);
+  }, [phase, tick]);
 }
