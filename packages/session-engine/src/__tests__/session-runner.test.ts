@@ -281,6 +281,104 @@ describe("SessionRunner", () => {
       expect(extendedEvents).toHaveLength(1);
       expect(extendedEvents[0]!.data?.additionalMinutes).toBe(10);
     });
+
+    it("should append additional blocks to the session", () => {
+      const session = createSession({
+        blocks: [
+          { type: "focus", duration: 1, blockingEnabled: true },
+        ],
+      });
+      const runner = new SessionRunner(session);
+      const events = collectEvents(runner);
+      runner.start();
+
+      runner.extend(0, [
+        { type: "break", duration: 1, blockingEnabled: false },
+        { type: "focus", duration: 1, blockingEnabled: true },
+      ]);
+
+      // Event should report the number of additional blocks
+      const extendedEvent = events.find((e) => e.type === "session:extended");
+      expect(extendedEvent?.data?.additionalBlocks).toBe(2);
+    });
+
+    it("should play appended blocks after original blocks finish", () => {
+      const session = createSession({
+        blocks: [
+          { type: "focus", duration: 1, blockingEnabled: true },
+        ],
+      });
+      const runner = new SessionRunner(session);
+      runner.start();
+
+      // Extend with a break block
+      runner.extend(0, [
+        { type: "break", duration: 1, blockingEnabled: false },
+      ]);
+
+      // Complete the original focus block
+      vi.advanceTimersByTime(60_000);
+
+      // Should now be on the break block (not completed)
+      expect(runner.getState()).toBe("break_active");
+    });
+
+    it("should complete after all original and appended blocks finish", () => {
+      const session = createSession({
+        blocks: [
+          { type: "focus", duration: 1, blockingEnabled: true },
+        ],
+      });
+      const runner = new SessionRunner(session);
+      runner.start();
+
+      runner.extend(0, [
+        { type: "break", duration: 1, blockingEnabled: false },
+        { type: "focus", duration: 1, blockingEnabled: true },
+      ]);
+
+      // Complete all 3 blocks (1 original + 2 appended)
+      vi.advanceTimersByTime(60_000); // focus 1
+      vi.advanceTimersByTime(60_000); // break
+      vi.advanceTimersByTime(60_000); // focus 2
+
+      expect(runner.getState()).toBe("completed");
+    });
+
+    it("should report additionalBlocks as 0 when no blocks are added", () => {
+      const runner = new SessionRunner(createSession());
+      const events = collectEvents(runner);
+      runner.start();
+
+      runner.extend(5);
+
+      const extendedEvent = events.find((e) => e.type === "session:extended");
+      expect(extendedEvent?.data?.additionalBlocks).toBe(0);
+    });
+
+    it("should combine time extension with additional blocks", () => {
+      const session = createSession({
+        blocks: [
+          { type: "focus", duration: 2, blockingEnabled: true },
+        ],
+      });
+      const runner = new SessionRunner(session);
+      const events = collectEvents(runner);
+      runner.start();
+      vi.advanceTimersByTime(60_000); // 1 minute in
+
+      // Extend current block by 1 minute AND add a break block
+      runner.extend(1, [
+        { type: "break", duration: 1, blockingEnabled: false },
+      ]);
+
+      const extendedEvent = events.find((e) => e.type === "session:extended");
+      expect(extendedEvent?.data?.additionalMinutes).toBe(1);
+      expect(extendedEvent?.data?.additionalBlocks).toBe(1);
+
+      // Remaining for current block: was 2 min, elapsed 1, extended by 1 = 2 min remaining
+      expect(runner.getRemainingMinutes()).toBeCloseTo(2, 0);
+    });
   });
 
   describe("recordDistraction", () => {

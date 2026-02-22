@@ -113,11 +113,24 @@ export class SessionRunner {
   }
 
   /**
-   * Extend the current block by additional minutes.
+   * Extend a running session.
+   *
+   * - `minutes` adds time to the current block's timer.
+   * - `additionalBlocks` (optional) appends new blocks to the session,
+   *   so they will be played after the current sequence finishes.
    */
-  extend(minutes: number): void {
+  extend(minutes: number, additionalBlocks?: SessionBlock[]): void {
     this.timer.extend(minutes * MINUTES_TO_MS);
-    this.emitEvent("session:extended", { additionalMinutes: minutes });
+
+    if (additionalBlocks && additionalBlocks.length > 0) {
+      this.session.blocks.push(...additionalBlocks);
+      this.stateMachine.setTotalBlocks(this.session.blocks.length);
+    }
+
+    this.emitEvent("session:extended", {
+      additionalMinutes: minutes,
+      additionalBlocks: additionalBlocks?.length ?? 0,
+    });
   }
 
   /**

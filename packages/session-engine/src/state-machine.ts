@@ -60,6 +60,13 @@ export class SessionStateMachine {
   }
 
   /**
+   * Update the total block count (e.g. when blocks are appended via hot extension).
+   */
+  setTotalBlocks(count: number): void {
+    this.totalBlocks = count;
+  }
+
+  /**
    * Check whether a transition from the current state to `to` is valid.
    */
   canTransition(to: SessionState): boolean {
