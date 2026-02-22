@@ -2,4 +2,29 @@ CLAUDE.local.md
 .env
 .env.local
 .env.production
+
+# Dependencies
 node_modules/
+
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# Tauri
+apps/desktop/src-tauri/target/
+
+# Turbo
+.turbo/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Lock files kept: pnpm-lock.yaml
