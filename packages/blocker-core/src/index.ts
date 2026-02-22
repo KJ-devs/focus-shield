@@ -1,5 +1,11 @@
-// @focus-shield/blocker-core
-// Domain matching, process matching, blocklist presets
-// Implementation in US-04
+export { matchesDomain, isDomainBlocked } from "./domain-matcher";
 
-export {};
+export { matchesProcess, findMatchingProcessRule } from "./process-matcher";
+
+export {
+  BLOCKLIST_PRESETS,
+  getBlocklistPreset,
+  getAllBlocklistPresets,
+} from "./presets";
+
+export { mergeBlocklists, createCustomBlocklist } from "./blocklist-manager";
