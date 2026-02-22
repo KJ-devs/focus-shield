@@ -7,37 +7,42 @@
 - **US-01 (#2)** — Package shared-types : DONE, closed
 - **US-02 (#3)** — Package session-engine : DONE, closed (193 tests)
 - **US-03 (#4)** — Package crypto : DONE, closed (52 tests)
-  - Token generator: CSPRNG + rejection sampling, 5 levels (8-48 chars)
-  - Argon2id hasher: hash-wasm WASM, OWASP params, self-contained encoded output
-  - Timing-safe verifier: SHA-256 normalized constant-time comparison
-  - Rate limiter: 3 attempts → 5 min cooldown, auto-expiry
-  - Security reviewed: fixed modulo bias, documented timing-safe delegation
+- **US-04 (#6)** — Package blocker-core : DONE, closed (116 tests)
+  - Domain matcher: wildcard, exact, path-based matching
+  - Process matcher: case-insensitive name + alias matching
+  - 5 built-in presets: Social, Entertainment, Gaming, News, Shopping
+  - Blocklist manager: merge, create, deduplicate
+- **US-05 (#8)** — Package storage : DONE, closed (183 tests)
+  - SQLite via better-sqlite3, in-memory for tests
+  - Migration system with versioned schema
+  - 5 repositories: sessions, sessionRuns, blocklists, profiles, stats
+  - Storage facade with auto-migration
 
 ### Prochaine US à faire
-- **US-04 (#6)** — Package blocker-core (domain matching, process matching, blocklist management)
-  - Équipe : ts-package-dev, tester, stabilizer
-  - Dépendance : US-01 (done)
+- **US-06 (#10)** — Browser extension (Manifest V3, declarativeNetRequest, popup, blocked page)
+  - Équipe : extension-dev, tester, stabilizer
+  - Dépendance : US-01 (done), US-04 (done)
 
 ### Ordre restant Phase 1 MVP
-US-04(#6) → US-05(#8) → US-06(#10) → US-07(#12) → US-08(#14)
+US-06(#10) → US-07(#12) → US-08(#14)
 
 ## Infos techniques clés
 - **Repo** : https://github.com/KJ-devs/focus-shield
 - **Branche** : main (push direct, pas de PR)
-- **Dernier commit** : 8745d86
+- **Dernier commit** : 2f58afc
 - **Package manager** : pnpm 10.4.1
 - **Node** : v24.13.1
 - **Rust** : NON installé (Tauri scaffoldé mais ne compile pas encore)
 - **Stabilité** : `bash scripts/stability-check.sh` — STABLE
-- **Total tests** : 245 (193 session-engine + 52 crypto)
+- **Total tests** : 544 (193 session-engine + 52 crypto + 116 blocker-core + 183 storage)
 
 ## Structure du monorepo
 ```
 packages/shared-types    → types TS (DONE)
 packages/session-engine  → state machine + timer + presets + score + runner (DONE)
 packages/crypto          → tokens + argon2 + verifier + rate-limiter (DONE)
-packages/blocker-core    → placeholder (US-04)
-packages/storage         → placeholder (US-05)
+packages/blocker-core    → domain/process matching + presets + blocklist manager (DONE)
+packages/storage         → SQLite + migrations + repositories + facade (DONE)
 packages/ui-components   → placeholder
 apps/desktop             → Tauri 2.0 + React + Tailwind (shell)
 apps/browser-extension   → Manifest V3 + React (shell)
