@@ -11,6 +11,21 @@ interface SubscribePayload {
   userId: string;
 }
 
+interface BuddyStatusPayload {
+  userId: string;
+  status: "focusing" | "on_break" | "idle";
+  sessionName?: string;
+  startedAt?: string;
+}
+
+interface BuddyNotificationPayload {
+  buddyPairId: string;
+  fromUserId: string;
+  fromDisplayName: string;
+  type: string;
+  message: string;
+}
+
 @WebSocketGateway({ cors: true })
 export class SyncGateway {
   @WebSocketServer()
@@ -24,6 +39,13 @@ export class SyncGateway {
     void client.join(`user:${data.userId}`);
   }
 
+  @SubscribeMessage("buddy:status")
+  handleBuddyStatus(
+    @MessageBody() data: BuddyStatusPayload,
+  ): void {
+    this.notifyBuddyStatus(data);
+  }
+
   notifySessionSync(userId: string): void {
     this.server.to(`user:${userId}`).emit("session:updated");
   }
@@ -34,5 +56,16 @@ export class SyncGateway {
 
   notifyConfigSync(userId: string): void {
     this.server.to(`user:${userId}`).emit("config:updated");
+  }
+
+  notifyBuddyStatus(data: BuddyStatusPayload): void {
+    this.server.emit("buddy:status", data);
+  }
+
+  notifyBuddyNotification(
+    targetUserId: string,
+    data: BuddyNotificationPayload,
+  ): void {
+    this.server.to(`user:${targetUserId}`).emit("buddy:notification", data);
   }
 }

@@ -77,6 +77,35 @@ interface SyncConfigData {
   syncedAt: string;
 }
 
+interface BuddyInviteResponse {
+  id: string;
+  requesterId: string;
+  responderId: string | null;
+  status: string;
+  inviteCode: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BuddyWithUser {
+  id: string;
+  buddyUserId: string;
+  buddyDisplayName: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface BuddyNotificationData {
+  id: string;
+  buddyPairId: string;
+  fromUserId: string;
+  fromDisplayName: string;
+  type: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
+
 export class SyncClientError extends Error {
   constructor(
     message: string,
@@ -174,6 +203,67 @@ export class SyncClient {
   async pullConfig(): Promise<ApiResponse<SyncConfigData | null>> {
     return this.request<SyncConfigData | null>("/sync/config", {
       method: "GET",
+    });
+  }
+
+  async createBuddyInvite(): Promise<ApiResponse<BuddyInviteResponse>> {
+    return this.request<BuddyInviteResponse>("/buddy/invite", {
+      method: "POST",
+    });
+  }
+
+  async acceptBuddyInvite(
+    inviteCode: string,
+  ): Promise<ApiResponse<BuddyInviteResponse>> {
+    return this.request<BuddyInviteResponse>("/buddy/accept", {
+      method: "POST",
+      body: JSON.stringify({ inviteCode }),
+    });
+  }
+
+  async declineBuddyInvite(
+    inviteCode: string,
+  ): Promise<ApiResponse<BuddyInviteResponse>> {
+    return this.request<BuddyInviteResponse>("/buddy/decline", {
+      method: "POST",
+      body: JSON.stringify({ inviteCode }),
+    });
+  }
+
+  async getBuddies(): Promise<ApiResponse<BuddyWithUser[]>> {
+    return this.request<BuddyWithUser[]>("/buddy/list", {
+      method: "GET",
+    });
+  }
+
+  async removeBuddy(
+    buddyId: string,
+  ): Promise<ApiResponse<{ removed: boolean }>> {
+    return this.request<{ removed: boolean }>(`/buddy/${buddyId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getBuddyNotifications(
+    unreadOnly?: boolean,
+  ): Promise<ApiResponse<BuddyNotificationData[]>> {
+    const params = new URLSearchParams();
+    if (unreadOnly) {
+      params.set("unreadOnly", "true");
+    }
+
+    const query = params.toString();
+    const path = query
+      ? `/buddy/notifications?${query}`
+      : "/buddy/notifications";
+    return this.request<BuddyNotificationData[]>(path, { method: "GET" });
+  }
+
+  async markBuddyNotificationRead(
+    notificationId: string,
+  ): Promise<ApiResponse<unknown>> {
+    return this.request<unknown>(`/buddy/notifications/${notificationId}/read`, {
+      method: "PATCH",
     });
   }
 

@@ -7,6 +7,7 @@ import { BlocklistsPage } from "@/pages/BlocklistsPage";
 import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { ProfilesPage } from "@/pages/ProfilesPage";
+import { BuddyPage } from "@/pages/BuddyPage";
 import { BlockedPage } from "@/components/blocked/BlockedPage";
 
 export function App() {
@@ -23,6 +24,7 @@ export function App() {
           <Route path="blocklists" element={<BlocklistsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="profiles" element={<ProfilesPage />} />
+          <Route path="buddy" element={<BuddyPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
