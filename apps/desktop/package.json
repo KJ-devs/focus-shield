@@ -12,6 +12,8 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint src/",
     "clean": "rm -rf dist",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed",
     "tauri": "tauri"
   },
   "dependencies": {
