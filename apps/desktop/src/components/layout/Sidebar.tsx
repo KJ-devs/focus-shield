@@ -15,6 +15,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/analytics", label: "Analytics", icon: "\uD83D\uDCCA" },
   { to: "/profiles", label: "Profiles", icon: "\uD83D\uDC64" },
   { to: "/buddy", label: "Buddies", icon: "\uD83D\uDC65" },
+  { to: "/challenges", label: "Challenges", icon: "\uD83C\uDFC6" },
+  { to: "/coworking", label: "Coworking", icon: "\uD83C\uDFA5" },
   { to: "/settings", label: "Settings", icon: "\u2699\uFE0F" },
 ];
 

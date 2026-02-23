@@ -5,12 +5,18 @@ import { UsersModule } from "./users/users.module";
 import { SyncModule } from "./sync/sync.module";
 import { AuthModule } from "./auth/auth.module";
 import { BuddyModule } from "./buddy/buddy.module";
+import { ChallengeModule } from "./challenge/challenge.module";
+import { CoworkingModule } from "./coworking/coworking.module";
 import { User } from "./users/user.entity";
 import { SyncSession } from "./sync/sync-session.entity";
 import { SyncStats } from "./sync/sync-stats.entity";
 import { SyncConfig } from "./sync/sync-config.entity";
 import { Buddy } from "./buddy/buddy.entity";
 import { BuddyNotification } from "./buddy/buddy-notification.entity";
+import { Challenge } from "./challenge/challenge.entity";
+import { ChallengeParticipant } from "./challenge/challenge-participant.entity";
+import { CoworkingRoom } from "./coworking/coworking-room.entity";
+import { CoworkingMember } from "./coworking/coworking-member.entity";
 
 @Module({
   imports: [
@@ -21,7 +27,18 @@ import { BuddyNotification } from "./buddy/buddy-notification.entity";
       username: process.env["DB_USERNAME"] ?? "focus",
       password: process.env["DB_PASSWORD"] ?? "focus",
       database: process.env["DB_NAME"] ?? "focus_shield",
-      entities: [User, SyncSession, SyncStats, SyncConfig, Buddy, BuddyNotification],
+      entities: [
+        User,
+        SyncSession,
+        SyncStats,
+        SyncConfig,
+        Buddy,
+        BuddyNotification,
+        Challenge,
+        ChallengeParticipant,
+        CoworkingRoom,
+        CoworkingMember,
+      ],
       synchronize: process.env["NODE_ENV"] !== "production",
       logging: process.env["NODE_ENV"] === "development",
     }),
@@ -30,6 +47,8 @@ import { BuddyNotification } from "./buddy/buddy-notification.entity";
     AuthModule,
     SyncModule,
     BuddyModule,
+    ChallengeModule,
+    CoworkingModule,
   ],
 })
 export class AppModule {}

@@ -11,6 +11,10 @@ interface SubscribePayload {
   userId: string;
 }
 
+interface RoomSubscribePayload {
+  roomId: string;
+}
+
 interface BuddyStatusPayload {
   userId: string;
   status: "focusing" | "on_break" | "idle";
@@ -26,6 +30,31 @@ interface BuddyNotificationPayload {
   message: string;
 }
 
+interface CoworkingStatusPayload {
+  roomId: string;
+  userId: string;
+  displayName: string;
+  status: "idle" | "focusing" | "break";
+  currentSessionMinutes: number | null;
+}
+
+interface CoworkingSyncStartPayload {
+  roomId: string;
+  startedAt: string;
+  startedBy: string;
+}
+
+interface LeaderboardUpdatePayload {
+  challengeId: string;
+  leaderboard: {
+    userId: string;
+    displayName: string;
+    totalFocusMinutes: number;
+    sessionsCompleted: number;
+    rank: number;
+  }[];
+}
+
 @WebSocketGateway({ cors: true })
 export class SyncGateway {
   @WebSocketServer()
@@ -39,11 +68,34 @@ export class SyncGateway {
     void client.join(`user:${data.userId}`);
   }
 
+  @SubscribeMessage("coworking:join-room")
+  handleJoinRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: RoomSubscribePayload,
+  ): void {
+    void client.join(`room:${data.roomId}`);
+  }
+
+  @SubscribeMessage("coworking:leave-room")
+  handleLeaveRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: RoomSubscribePayload,
+  ): void {
+    void client.leave(`room:${data.roomId}`);
+  }
+
   @SubscribeMessage("buddy:status")
   handleBuddyStatus(
     @MessageBody() data: BuddyStatusPayload,
   ): void {
     this.notifyBuddyStatus(data);
+  }
+
+  @SubscribeMessage("coworking:status-update")
+  handleCoworkingStatusUpdate(
+    @MessageBody() data: CoworkingStatusPayload,
+  ): void {
+    this.notifyCoworkingStatusUpdate(data);
   }
 
   notifySessionSync(userId: string): void {
@@ -67,5 +119,17 @@ export class SyncGateway {
     data: BuddyNotificationPayload,
   ): void {
     this.server.to(`user:${targetUserId}`).emit("buddy:notification", data);
+  }
+
+  notifyCoworkingStatusUpdate(data: CoworkingStatusPayload): void {
+    this.server.to(`room:${data.roomId}`).emit("coworking:status-update", data);
+  }
+
+  notifyCoworkingSyncStart(data: CoworkingSyncStartPayload): void {
+    this.server.to(`room:${data.roomId}`).emit("coworking:sync-start", data);
+  }
+
+  notifyLeaderboardUpdate(data: LeaderboardUpdatePayload): void {
+    this.server.emit("challenge:leaderboard-update", data);
   }
 }

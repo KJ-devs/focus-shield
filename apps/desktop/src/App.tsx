@@ -8,6 +8,8 @@ import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { ProfilesPage } from "@/pages/ProfilesPage";
 import { BuddyPage } from "@/pages/BuddyPage";
+import { ChallengePage } from "@/pages/ChallengePage";
+import { CoworkingPage } from "@/pages/CoworkingPage";
 import { BlockedPage } from "@/components/blocked/BlockedPage";
 
 export function App() {
@@ -25,6 +27,8 @@ export function App() {
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="profiles" element={<ProfilesPage />} />
           <Route path="buddy" element={<BuddyPage />} />
+          <Route path="challenges" element={<ChallengePage />} />
+          <Route path="coworking" element={<CoworkingPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

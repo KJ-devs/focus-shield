@@ -106,6 +106,73 @@ export interface BuddyNotificationData {
   createdAt: string;
 }
 
+export interface ChallengeData {
+  id: string;
+  creatorId: string;
+  title: string;
+  weekStart: string;
+  weekEnd: string;
+  isActive: boolean;
+  createdAt: string;
+  participants?: ChallengeParticipantData[];
+}
+
+export interface ChallengeParticipantData {
+  id: string;
+  challengeId: string;
+  userId: string;
+  totalFocusMinutes: number;
+  sessionsCompleted: number;
+  rank: number;
+  joinedAt: string | null;
+  user?: { id: string; displayName: string };
+}
+
+export interface LeaderboardEntry {
+  userId: string;
+  displayName: string;
+  totalFocusMinutes: number;
+  sessionsCompleted: number;
+  rank: number;
+}
+
+export interface WeeklyReportData {
+  totalFocusMinutes: number;
+  sessionsCompleted: number;
+  rank: number;
+  totalParticipants: number;
+  challengeTitle: string;
+}
+
+export interface CoworkingRoomData {
+  id: string;
+  name: string;
+  hostId: string;
+  isActive: boolean;
+  inviteCode: string;
+  createdAt: string;
+  members?: CoworkingMemberData[];
+}
+
+export interface CoworkingMemberData {
+  id: string;
+  roomId: string;
+  userId: string;
+  status: string;
+  currentSessionMinutes: number | null;
+  sessionStartedAt: string | null;
+  joinedAt: string | null;
+  user?: { id: string; displayName: string };
+}
+
+export interface RoomMemberDto {
+  userId: string;
+  displayName: string;
+  status: string;
+  currentSessionMinutes: number | null;
+  sessionStartedAt: string | null;
+}
+
 export class SyncClientError extends Error {
   constructor(
     message: string,
@@ -265,6 +332,126 @@ export class SyncClient {
     return this.request<unknown>(`/buddy/notifications/${notificationId}/read`, {
       method: "PATCH",
     });
+  }
+
+  // --- Challenge methods ---
+
+  async createChallenge(title: string): Promise<ApiResponse<ChallengeData>> {
+    return this.request<ChallengeData>("/challenges", {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    });
+  }
+
+  async joinChallenge(
+    challengeId: string,
+  ): Promise<ApiResponse<ChallengeParticipantData>> {
+    return this.request<ChallengeParticipantData>(
+      `/challenges/${challengeId}/join`,
+      { method: "POST" },
+    );
+  }
+
+  async getLeaderboard(
+    challengeId: string,
+  ): Promise<ApiResponse<LeaderboardEntry[]>> {
+    return this.request<LeaderboardEntry[]>(
+      `/challenges/${challengeId}/leaderboard`,
+      { method: "GET" },
+    );
+  }
+
+  async getActiveChallenges(): Promise<ApiResponse<ChallengeData[]>> {
+    return this.request<ChallengeData[]>("/challenges/active", {
+      method: "GET",
+    });
+  }
+
+  async updateChallengeStats(
+    challengeId: string,
+    focusMinutes: number,
+    sessionsCompleted: number,
+  ): Promise<ApiResponse<ChallengeParticipantData>> {
+    return this.request<ChallengeParticipantData>(
+      `/challenges/${challengeId}/stats`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ focusMinutes, sessionsCompleted }),
+      },
+    );
+  }
+
+  async getWeeklyReport(): Promise<ApiResponse<WeeklyReportData[]>> {
+    return this.request<WeeklyReportData[]>("/challenges/weekly-report", {
+      method: "GET",
+    });
+  }
+
+  // --- Coworking methods ---
+
+  async createCoworkingRoom(
+    name: string,
+  ): Promise<ApiResponse<CoworkingRoomData>> {
+    return this.request<CoworkingRoomData>("/coworking/rooms", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  async joinCoworkingRoom(
+    inviteCode: string,
+  ): Promise<ApiResponse<CoworkingMemberData>> {
+    return this.request<CoworkingMemberData>("/coworking/rooms/join", {
+      method: "POST",
+      body: JSON.stringify({ inviteCode }),
+    });
+  }
+
+  async leaveCoworkingRoom(
+    roomId: string,
+  ): Promise<ApiResponse<{ left: boolean }>> {
+    return this.request<{ left: boolean }>(
+      `/coworking/rooms/${roomId}/leave`,
+      { method: "DELETE" },
+    );
+  }
+
+  async updateCoworkingStatus(
+    roomId: string,
+    status: string,
+    sessionMinutes?: number,
+  ): Promise<ApiResponse<CoworkingMemberData>> {
+    return this.request<CoworkingMemberData>(
+      `/coworking/rooms/${roomId}/status`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ status, sessionMinutes }),
+      },
+    );
+  }
+
+  async getCoworkingRoomMembers(
+    roomId: string,
+  ): Promise<ApiResponse<RoomMemberDto[]>> {
+    return this.request<RoomMemberDto[]>(
+      `/coworking/rooms/${roomId}/members`,
+      { method: "GET" },
+    );
+  }
+
+  async getMyCoworkingRooms(): Promise<ApiResponse<CoworkingRoomData[]>> {
+    return this.request<CoworkingRoomData[]>("/coworking/rooms", {
+      method: "GET",
+    });
+  }
+
+  async startCoworkingSyncSession(
+    roomId: string,
+  ): Promise<ApiResponse<CoworkingMemberData[]>> {
+    return this.request<CoworkingMemberData[]>(
+      `/coworking/rooms/${roomId}/sync-start`,
+      { method: "POST" },
+    );
   }
 
   private async request<T>(
