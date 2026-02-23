@@ -5,6 +5,7 @@ import { LockLevelSelector } from "@/components/settings/LockLevelSelector";
 import { MasterKeySetup } from "@/components/settings/MasterKeySetup";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { MorningIntention } from "@/components/settings/MorningIntention";
+import { UpdateChecker } from "@/components/settings/UpdateChecker";
 import { useThemeStore } from "@/stores/theme-store";
 import { useSettingsStore } from "@/stores/settings-store";
 
@@ -33,11 +34,15 @@ export function SettingsPage() {
     notifications,
     morningIntention,
     morningIntentionEnabled,
+    autoUpdateEnabled,
+    crashReportingEnabled,
     setLockLevel,
     setMasterKeyConfigured,
     setNotification,
     setMorningIntention,
     setMorningIntentionEnabled,
+    setAutoUpdateEnabled,
+    setCrashReportingEnabled,
   } = useSettingsStore();
 
   const handleExportData = () => {
@@ -99,6 +104,26 @@ export function SettingsPage() {
             intention={morningIntention}
             onEnabledChange={setMorningIntentionEnabled}
             onIntentionChange={setMorningIntention}
+          />
+        </Card>
+
+        {/* ── Updates ─────────────────────────────────────────────────── */}
+        <Card>
+          <SectionHeading title="Updates" />
+          <UpdateChecker
+            autoUpdateEnabled={autoUpdateEnabled}
+            onAutoUpdateChange={setAutoUpdateEnabled}
+          />
+        </Card>
+
+        {/* ── Privacy & Telemetry ────────────────────────────────────── */}
+        <Card>
+          <SectionHeading title="Privacy & Telemetry" />
+          <Toggle
+            checked={crashReportingEnabled}
+            onChange={setCrashReportingEnabled}
+            label="Crash Reporting"
+            description="Send anonymous crash reports to help improve Focus Shield. Only stack traces, app version, and OS are collected. Disabled by default."
           />
         </Card>
 

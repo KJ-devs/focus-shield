@@ -18,12 +18,16 @@ export interface SettingsState {
   notifications: NotificationSettings;
   morningIntention: string;
   morningIntentionEnabled: boolean;
+  autoUpdateEnabled: boolean;
+  crashReportingEnabled: boolean;
 
   setLockLevel: (level: LockLevel) => void;
   setMasterKeyConfigured: (configured: boolean) => void;
   setNotification: (key: keyof NotificationSettings, value: boolean) => void;
   setMorningIntention: (intention: string) => void;
   setMorningIntentionEnabled: (enabled: boolean) => void;
+  setAutoUpdateEnabled: (enabled: boolean) => void;
+  setCrashReportingEnabled: (enabled: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -38,6 +42,8 @@ interface PersistedSettings {
   notifications: NotificationSettings;
   morningIntention: string;
   morningIntentionEnabled: boolean;
+  autoUpdateEnabled: boolean;
+  crashReportingEnabled: boolean;
 }
 
 const DEFAULT_NOTIFICATIONS: NotificationSettings = {
@@ -84,6 +90,14 @@ function loadPersistedSettings(): Partial<PersistedSettings> {
       result.morningIntentionEnabled = obj.morningIntentionEnabled;
     }
 
+    if (typeof obj.autoUpdateEnabled === "boolean") {
+      result.autoUpdateEnabled = obj.autoUpdateEnabled;
+    }
+
+    if (typeof obj.crashReportingEnabled === "boolean") {
+      result.crashReportingEnabled = obj.crashReportingEnabled;
+    }
+
     if (typeof obj.notifications === "object" && obj.notifications !== null) {
       const notif = obj.notifications as Record<string, unknown>;
       result.notifications = {
@@ -119,6 +133,8 @@ function persistSettings(state: PersistedSettings): void {
     notifications: state.notifications,
     morningIntention: state.morningIntention,
     morningIntentionEnabled: state.morningIntentionEnabled,
+    autoUpdateEnabled: state.autoUpdateEnabled,
+    crashReportingEnabled: state.crashReportingEnabled,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
@@ -135,6 +151,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   notifications: persisted.notifications ?? { ...DEFAULT_NOTIFICATIONS },
   morningIntention: persisted.morningIntention ?? DEFAULT_MORNING_INTENTION,
   morningIntentionEnabled: persisted.morningIntentionEnabled ?? false,
+  autoUpdateEnabled: persisted.autoUpdateEnabled ?? true,
+  crashReportingEnabled: persisted.crashReportingEnabled ?? false,
 
   setLockLevel: (level: LockLevel) => {
     set({ lockLevel: level });
@@ -160,5 +178,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setMorningIntentionEnabled: (enabled: boolean) => {
     set({ morningIntentionEnabled: enabled });
     persistSettings({ ...get(), morningIntentionEnabled: enabled });
+  },
+
+  setAutoUpdateEnabled: (enabled: boolean) => {
+    set({ autoUpdateEnabled: enabled });
+    persistSettings({ ...get(), autoUpdateEnabled: enabled });
+  },
+
+  setCrashReportingEnabled: (enabled: boolean) => {
+    set({ crashReportingEnabled: enabled });
+    persistSettings({ ...get(), crashReportingEnabled: enabled });
   },
 }));

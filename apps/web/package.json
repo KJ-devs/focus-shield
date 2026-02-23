@@ -1,0 +1,7 @@
+{
+  "name": "@focus-shield/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Focus Shield landing page (static HTML + Tailwind CDN)",
+  "scripts": {}
+}

@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Focus Shield &mdash; Open-Source Distraction Blocker</title>
+    <meta
+      name="description"
+      content="Open-source intelligent distraction blocker with configurable sessions, cryptographic locking and productivity analytics. Free, self-hostable, cross-platform."
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              focus: {
+                50: "#eef5ff",
+                100: "#d9e8ff",
+                200: "#bcd8ff",
+                300: "#8ec0ff",
+                400: "#599dff",
+                500: "#3478ff",
+                600: "#1b56f5",
+                700: "#1441e1",
+                800: "#1736b6",
+                900: "#19328f",
+                950: "#142057",
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      /* Minimal custom styles that Tailwind CDN cannot produce */
+      html {
+        color-scheme: dark;
+      }
+      .gradient-hero {
+        background: linear-gradient(
+          135deg,
+          #0f172a 0%,
+          #1e293b 50%,
+          #0f172a 100%
+        );
+      }
+      .card-hover {
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+      }
+      .card-hover:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+      }
+    </style>
+  </head>
+
+  <body class="bg-gray-950 text-gray-200 antialiased">
+    <!-- ─── Navigation ─────────────────────────────────────────────────── -->
+    <nav
+      class="sticky top-0 z-50 border-b border-gray-800 bg-gray-950/80 backdrop-blur-md"
+    >
+      <div
+        class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4"
+      >
+        <a href="#" class="flex items-center gap-2 text-lg font-bold text-white">
+          <svg
+            class="h-7 w-7 text-focus-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+            />
+          </svg>
+          Focus Shield
+        </a>
+        <div class="hidden items-center gap-8 md:flex">
+          <a href="#features" class="text-sm text-gray-400 hover:text-white"
+            >Features</a
+          >
+          <a href="#how-it-works" class="text-sm text-gray-400 hover:text-white"
+            >How It Works</a
+          >
+          <a href="#comparison" class="text-sm text-gray-400 hover:text-white"
+            >Compare</a
+          >
+          <a href="#self-hosting" class="text-sm text-gray-400 hover:text-white"
+            >Self-Host</a
+          >
+          <a
+            href="https://github.com/KJ-devs/focus-shield"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rounded-lg bg-focus-600 px-4 py-2 text-sm font-medium text-white hover:bg-focus-700"
+            >View on GitHub</a
+          >
+        </div>
+      </div>
+    </nav>
+
+    <!-- ─── Hero ───────────────────────────────────────────────────────── -->
+    <header class="gradient-hero">
+      <div
+        class="mx-auto flex max-w-6xl flex-col items-center px-6 py-24 text-center md:py-36"
+      >
+        <span
+          class="mb-4 inline-block rounded-full border border-focus-700 bg-focus-950/40 px-4 py-1 text-xs font-medium text-focus-400"
+          >100% Open Source &middot; Free Forever</span
+        >
+        <h1
+          class="max-w-3xl text-4xl font-extrabold leading-tight tracking-tight text-white md:text-6xl"
+        >
+          Take Back Your
+          <span class="text-focus-400">Focus</span>
+        </h1>
+        <p class="mt-6 max-w-2xl text-lg text-gray-400 md:text-xl">
+          The open-source, self-hostable distraction blocker with configurable
+          sessions, cryptographic locking, multi-level blocking, and
+          productivity analytics.
+        </p>
+        <div class="mt-10 flex flex-wrap items-center justify-center gap-4">
+          <a
+            href="https://github.com/KJ-devs/focus-shield/releases/latest"
+            class="rounded-lg bg-focus-600 px-8 py-3 text-base font-semibold text-white shadow-lg shadow-focus-600/20 hover:bg-focus-700"
+            >Download</a
+          >
+          <a
+            href="https://github.com/KJ-devs/focus-shield"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rounded-lg border border-gray-700 bg-gray-800 px-8 py-3 text-base font-semibold text-gray-200 hover:bg-gray-700"
+            >View on GitHub</a
+          >
+        </div>
+        <p class="mt-6 text-sm text-gray-500">
+          Available for Windows, macOS, and Linux &middot; Chrome &amp; Firefox
+          extensions
+        </p>
+      </div>
+    </header>
+
+    <!-- ─── Features ───────────────────────────────────────────────────── -->
+    <section id="features" class="border-t border-gray-800 py-24">
+      <div class="mx-auto max-w-6xl px-6">
+        <h2
+          class="mb-4 text-center text-3xl font-bold text-white md:text-4xl"
+        >
+          Everything You Need to Stay Focused
+        </h2>
+        <p class="mx-auto mb-16 max-w-2xl text-center text-gray-400">
+          A comprehensive suite of tools designed to help you build better work
+          habits and eliminate distractions.
+        </p>
+
+        <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <!-- Session Engine -->
+          <div
+            class="card-hover rounded-xl border border-gray-800 bg-gray-900 p-6"
+          >
+            <div
+              class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-focus-600/10 text-focus-400"
+            >
+              <svg
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <h3 class="mb-2 text-lg font-semibold text-white">
+              Session Engine
+            </h3>
+            <p class="text-sm text-gray-400">
+              Pomodoro, Deep Work, Sprint, and fully custom session sequences.
+              Scheduling, auto-start, and smart pause when your PC locks.
+            </p>
+          </div>
+
+          <!-- Smart Locking -->
+          <div
+            class="card-hover rounded-xl border border-gray-800 bg-gray-900 p-6"
+          >
+            <div
+              class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-amber-600/10 text-amber-400"
+            >
+              <svg
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            </div>
+            <h3 class="mb-2 text-lg font-semibold text-white">
+              Smart Locking
+            </h3>
+            <p class="text-sm text-gray-400">
+              Five friction levels from gentle to nuclear. Cryptographic token
+              system with Argon2 hashing, cooldowns, and anti-paste protection.
+            </p>
+          </div>
+
+          <!-- Multi-level Blocking -->
+          <div
+            class="card-hover rounded-xl border border-gray-800 bg-gray-900 p-6"
+          >
+            <div
+              class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-red-600/10 text-red-400"
+            >
+              <svg
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                />
+              </svg>
+            </div>
+            <h3 class="mb-2 text-lg font-semibold text-white">
+              Multi-Level Blocking
+            </h3>
+            <p class="text-sm text-gray-400">
+              Browser extension, DNS/hosts file modification, and process
+              management. Three layers working together to stop distractions.
+            </p>
+          </div>
+
+          <!-- Analytics -->
+          <div
+            class="card-hover rounded-xl border border-gray-800 bg-gray-900 p-6"
+          >
+            <div
+              class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-600/10 text-emerald-400"
+            >
+              <svg
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+            </div>
+            <h3 class="mb-2 text-lg font-semibold text-white">
+              Analytics Dashboard
+            </h3>
+            <p class="text-sm text-gray-400">
+              Heatmaps, trend charts, radar diagrams, and focus scores. Track
+              your productivity over days, weeks, and months.
+            </p>
+          </div>
+
+          <!-- Gamification -->
+          <div
+            class="card-hover rounded-xl border border-gray-800 bg-gray-900 p-6"
+          >
+            <div
+              class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-purple-600/10 text-purple-400"
+            >
+              <svg
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                />
+              </svg>
+            </div>
+            <h3 class="mb-2 text-lg font-semibold text-white">
+              Gamification
+            </h3>
+            <p class="text-sm text-gray-400">
+              Streaks, XP, levels, and achievements keep you motivated.
+              Unlock cosmetic themes as you build your focus habit.
+            </p>
+          </div>
+
+          <!-- Self-hosted Sync -->
+          <div
+            class="card-hover rounded-xl border border-gray-800 bg-gray-900 p-6"
+          >
+            <div
+              class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-600/10 text-cyan-400"
+            >
+              <svg
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+                />
+              </svg>
+            </div>
+            <h3 class="mb-2 text-lg font-semibold text-white">
+              Self-Hosted Sync
+            </h3>
+            <p class="text-sm text-gray-400">
+              Optional NestJS + PostgreSQL sync server you can run on your own
+              hardware. Multi-device sync, buddy system, and challenges.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── How It Works ───────────────────────────────────────────────── -->
+    <section id="how-it-works" class="border-t border-gray-800 bg-gray-900/50 py-24">
+      <div class="mx-auto max-w-6xl px-6">
+        <h2
+          class="mb-4 text-center text-3xl font-bold text-white md:text-4xl"
+        >
+          How It Works
+        </h2>
+        <p class="mx-auto mb-16 max-w-2xl text-center text-gray-400">
+          Three simple steps to reclaim your attention.
+        </p>
+
+        <div class="grid gap-12 md:grid-cols-3">
+          <!-- Step 1 -->
+          <div class="text-center">
+            <div
+              class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-focus-600 text-2xl font-bold text-white"
+            >
+              1
+            </div>
+            <h3 class="mb-2 text-xl font-semibold text-white">Configure</h3>
+            <p class="text-sm text-gray-400">
+              Choose a preset (Pomodoro, Deep Work, Sprint) or build your own
+              custom session. Select which sites and apps to block, and set your
+              desired lock level.
+            </p>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="text-center">
+            <div
+              class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-focus-600 text-2xl font-bold text-white"
+            >
+              2
+            </div>
+            <h3 class="mb-2 text-xl font-semibold text-white">Focus</h3>
+            <p class="text-sm text-gray-400">
+              Start your session and get to work. Distracting websites are
+              blocked in your browser and at the system level. The
+              cryptographic lock keeps you committed.
+            </p>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="text-center">
+            <div
+              class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-focus-600 text-2xl font-bold text-white"
+            >
+              3
+            </div>
+            <h3 class="mb-2 text-xl font-semibold text-white">Review</h3>
+            <p class="text-sm text-gray-400">
+              When your session ends, review your focus score, see how many
+              distractions were blocked, and track your progress over time in
+              the analytics dashboard.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Comparison ─────────────────────────────────────────────────── -->
+    <section id="comparison" class="border-t border-gray-800 py-24">
+      <div class="mx-auto max-w-6xl px-6">
+        <h2
+          class="mb-4 text-center text-3xl font-bold text-white md:text-4xl"
+        >
+          How Focus Shield Compares
+        </h2>
+        <p class="mx-auto mb-16 max-w-2xl text-center text-gray-400">
+          See why Focus Shield is the best open-source alternative to paid
+          distraction blockers.
+        </p>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-gray-800 text-gray-400">
+                <th class="px-4 py-3 font-medium">Feature</th>
+                <th class="px-4 py-3 font-medium text-focus-400">
+                  Focus Shield
+                </th>
+                <th class="px-4 py-3 font-medium">Cold Turkey</th>
+                <th class="px-4 py-3 font-medium">Freedom</th>
+                <th class="px-4 py-3 font-medium">Forest</th>
+              </tr>
+            </thead>
+            <tbody class="text-gray-300">
+              <tr class="border-b border-gray-800/50">
+                <td class="px-4 py-3">Open Source</td>
+                <td class="px-4 py-3 text-green-400">Yes</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+              </tr>
+              <tr class="border-b border-gray-800/50">
+                <td class="px-4 py-3">Self-Hostable</td>
+                <td class="px-4 py-3 text-green-400">Yes</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+              </tr>
+              <tr class="border-b border-gray-800/50">
+                <td class="px-4 py-3">System Blocking (hosts)</td>
+                <td class="px-4 py-3 text-green-400">Yes</td>
+                <td class="px-4 py-3 text-green-400">Yes</td>
+                <td class="px-4 py-3 text-green-400">Yes</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+              </tr>
+              <tr class="border-b border-gray-800/50">
+                <td class="px-4 py-3">Process Blocking</td>
+                <td class="px-4 py-3 text-green-400">Yes</td>
+                <td class="px-4 py-3 text-green-400">Yes</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+              </tr>
+              <tr class="border-b border-gray-800/50">
+                <td class="px-4 py-3">Configurable Sessions</td>
+                <td class="px-4 py-3 text-green-400">Advanced</td>
+                <td class="px-4 py-3 text-yellow-400">Basic</td>
+                <td class="px-4 py-3 text-yellow-400">Basic</td>
+                <td class="px-4 py-3 text-yellow-400">Timer only</td>
+              </tr>
+              <tr class="border-b border-gray-800/50">
+                <td class="px-4 py-3">Cryptographic Locking</td>
+                <td class="px-4 py-3 text-green-400">Multi-level</td>
+                <td class="px-4 py-3 text-yellow-400">Partial</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+              </tr>
+              <tr class="border-b border-gray-800/50">
+                <td class="px-4 py-3">Analytics</td>
+                <td class="px-4 py-3 text-green-400">Comprehensive</td>
+                <td class="px-4 py-3 text-yellow-400">Basic</td>
+                <td class="px-4 py-3 text-yellow-400">Basic</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+              </tr>
+              <tr class="border-b border-gray-800/50">
+                <td class="px-4 py-3">Gamification</td>
+                <td class="px-4 py-3 text-green-400">Multi-system</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+                <td class="px-4 py-3 text-red-400">No</td>
+                <td class="px-4 py-3 text-green-400">Yes</td>
+              </tr>
+              <tr>
+                <td class="px-4 py-3">Price</td>
+                <td class="px-4 py-3 font-semibold text-green-400">Free</td>
+                <td class="px-4 py-3 text-gray-400">$39</td>
+                <td class="px-4 py-3 text-gray-400">$7/mo</td>
+                <td class="px-4 py-3 text-gray-400">Freemium</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Self-Hosting ───────────────────────────────────────────────── -->
+    <section
+      id="self-hosting"
+      class="border-t border-gray-800 bg-gray-900/50 py-24"
+    >
+      <div class="mx-auto max-w-6xl px-6">
+        <h2
+          class="mb-4 text-center text-3xl font-bold text-white md:text-4xl"
+        >
+          Run Your Own Sync Server
+        </h2>
+        <p class="mx-auto mb-12 max-w-2xl text-center text-gray-400">
+          Keep your data entirely under your control. Deploy the sync server
+          with Docker in under a minute.
+        </p>
+
+        <div
+          class="mx-auto max-w-2xl overflow-hidden rounded-xl border border-gray-800 bg-gray-950"
+        >
+          <div class="flex items-center gap-2 border-b border-gray-800 px-4 py-3">
+            <span class="h-3 w-3 rounded-full bg-red-500"></span>
+            <span class="h-3 w-3 rounded-full bg-yellow-500"></span>
+            <span class="h-3 w-3 rounded-full bg-green-500"></span>
+            <span class="ml-2 text-xs text-gray-500">terminal</span>
+          </div>
+          <pre
+            class="overflow-x-auto p-6 text-sm leading-relaxed text-gray-300"
+          ><code><span class="text-gray-500"># Clone the repository</span>
+git clone https://github.com/KJ-devs/focus-shield.git
+cd focus-shield/apps/sync-server
+
+<span class="text-gray-500"># Start everything with Docker Compose</span>
+docker compose up -d
+
+<span class="text-gray-500"># The sync server is now running on http://localhost:3001</span></code></pre>
+        </div>
+
+        <p class="mt-8 text-center text-sm text-gray-500">
+          Includes NestJS API server and PostgreSQL database. See the
+          <a
+            href="https://github.com/KJ-devs/focus-shield/blob/main/docs/self-hosting.md"
+            class="text-focus-400 underline hover:text-focus-300"
+            >self-hosting guide</a
+          >
+          for detailed configuration options.
+        </p>
+      </div>
+    </section>
+
+    <!-- ─── CTA ────────────────────────────────────────────────────────── -->
+    <section class="border-t border-gray-800 py-24">
+      <div class="mx-auto max-w-6xl px-6 text-center">
+        <h2 class="mb-4 text-3xl font-bold text-white md:text-4xl">
+          Ready to Focus?
+        </h2>
+        <p class="mx-auto mb-10 max-w-xl text-gray-400">
+          Download Focus Shield for free and start building better work habits
+          today.
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-4">
+          <a
+            href="https://github.com/KJ-devs/focus-shield/releases/latest"
+            class="rounded-lg bg-focus-600 px-8 py-3 text-base font-semibold text-white shadow-lg shadow-focus-600/20 hover:bg-focus-700"
+            >Download for Free</a
+          >
+          <a
+            href="https://github.com/KJ-devs/focus-shield"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rounded-lg border border-gray-700 bg-gray-800 px-8 py-3 text-base font-semibold text-gray-200 hover:bg-gray-700"
+            >Star on GitHub</a
+          >
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Footer ─────────────────────────────────────────────────────── -->
+    <footer class="border-t border-gray-800 bg-gray-950 py-12">
+      <div
+        class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 md:flex-row"
+      >
+        <p class="text-sm text-gray-500">
+          Focus Shield &mdash; Open-source, MIT License
+        </p>
+        <div class="flex items-center gap-6">
+          <a
+            href="https://github.com/KJ-devs/focus-shield"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-sm text-gray-500 hover:text-gray-300"
+            >GitHub</a
+          >
+          <a
+            href="https://github.com/KJ-devs/focus-shield/blob/main/docs/contributing.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-sm text-gray-500 hover:text-gray-300"
+            >Contributing</a
+          >
+          <a
+            href="https://github.com/KJ-devs/focus-shield/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-sm text-gray-500 hover:text-gray-300"
+            >Issues</a
+          >
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
