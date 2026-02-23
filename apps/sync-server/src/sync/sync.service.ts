@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository, MoreThanOrEqual } from "typeorm";
 import { SyncSession } from "./sync-session.entity";
 import { SyncStats } from "./sync-stats.entity";
+import { SyncConfig } from "./sync-config.entity";
 
 export interface PushSessionDto {
   userId: string;
@@ -22,6 +23,12 @@ export interface PushStatsDto {
   sessionsCompleted: number;
   distractionAttempts: number;
   averageFocusScore: number;
+  syncedAt?: string;
+}
+
+export interface PushConfigDto {
+  userId: string;
+  configData: Record<string, unknown>;
 }
 
 @Injectable()
@@ -31,6 +38,8 @@ export class SyncService {
     private readonly sessionRepository: Repository<SyncSession>,
     @InjectRepository(SyncStats)
     private readonly statsRepository: Repository<SyncStats>,
+    @InjectRepository(SyncConfig)
+    private readonly configRepository: Repository<SyncConfig>,
   ) {}
 
   async pushSessions(sessions: PushSessionDto[]): Promise<SyncSession[]> {
@@ -72,6 +81,14 @@ export class SyncService {
       });
 
       if (existing) {
+        if (dto.syncedAt) {
+          const incomingDate = new Date(dto.syncedAt);
+          if (incomingDate <= existing.syncedAt) {
+            results.push(existing);
+            continue;
+          }
+        }
+
         existing.totalFocusMinutes = dto.totalFocusMinutes;
         existing.sessionsCompleted = dto.sessionsCompleted;
         existing.distractionAttempts = dto.distractionAttempts;
@@ -103,6 +120,32 @@ export class SyncService {
     return this.statsRepository.find({
       where,
       order: { date: "ASC" },
+    });
+  }
+
+  async pushConfig(
+    userId: string,
+    configData: Record<string, unknown>,
+  ): Promise<SyncConfig> {
+    const existing = await this.configRepository.findOne({
+      where: { userId },
+    });
+
+    if (existing) {
+      existing.configData = configData;
+      return this.configRepository.save(existing);
+    }
+
+    const entity = this.configRepository.create({
+      userId,
+      configData,
+    });
+    return this.configRepository.save(entity);
+  }
+
+  async pullConfig(userId: string): Promise<SyncConfig | null> {
+    return this.configRepository.findOne({
+      where: { userId },
     });
   }
 }

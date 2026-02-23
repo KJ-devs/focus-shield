@@ -29,6 +29,10 @@ export class UsersService {
     return this.userRepository.findOne({ where: { email } });
   }
 
+  async findByTokenHash(tokenHash: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { tokenHash } });
+  }
+
   async create(dto: CreateUserDto): Promise<User> {
     const user = this.userRepository.create({
       email: dto.email,

@@ -6,9 +6,12 @@ import {
 } from "../sync/sync.service";
 import { SyncSession } from "../sync/sync-session.entity";
 import { SyncStats } from "../sync/sync-stats.entity";
+import { SyncConfig } from "../sync/sync-config.entity";
 import { Repository, ObjectLiteral } from "typeorm";
 
-function createMockRepository<T extends ObjectLiteral>(): Partial<Repository<T>> {
+function createMockRepository<T extends ObjectLiteral>(): Partial<
+  Repository<T>
+> {
   return {
     findOne: vi.fn(),
     find: vi.fn(),
@@ -51,17 +54,31 @@ function createMockStats(overrides: Partial<SyncStats> = {}): SyncStats {
   };
 }
 
+function createMockConfig(overrides: Partial<SyncConfig> = {}): SyncConfig {
+  return {
+    id: "config-uuid-1",
+    userId: "user-uuid-1",
+    configData: { theme: "dark", lockLevel: 3 },
+    syncedAt: new Date("2026-01-15T10:00:00Z"),
+    user: undefined as never,
+    ...overrides,
+  };
+}
+
 describe("SyncService", () => {
   let service: SyncService;
   let mockSessionRepo: ReturnType<typeof createMockRepository<SyncSession>>;
   let mockStatsRepo: ReturnType<typeof createMockRepository<SyncStats>>;
+  let mockConfigRepo: ReturnType<typeof createMockRepository<SyncConfig>>;
 
   beforeEach(() => {
     mockSessionRepo = createMockRepository<SyncSession>();
     mockStatsRepo = createMockRepository<SyncStats>();
+    mockConfigRepo = createMockRepository<SyncConfig>();
     service = new SyncService(
       mockSessionRepo as Repository<SyncSession>,
       mockStatsRepo as Repository<SyncStats>,
+      mockConfigRepo as Repository<SyncConfig>,
     );
   });
 
@@ -85,7 +102,9 @@ describe("SyncService", () => {
       });
 
       vi.mocked(mockSessionRepo.create!).mockReturnValue(mockEntity);
-      vi.mocked(mockSessionRepo.save!).mockResolvedValue([mockEntity] as never);
+      vi.mocked(mockSessionRepo.save!).mockResolvedValue(
+        [mockEntity] as never,
+      );
 
       const result = await service.pushSessions([dto]);
 
@@ -206,7 +225,7 @@ describe("SyncService", () => {
       expect(result).toHaveLength(1);
     });
 
-    it("should update existing stats (upsert)", async () => {
+    it("should update existing stats (upsert) when no syncedAt provided", async () => {
       const dto: PushStatsDto = {
         userId: "user-uuid-1",
         date: "2026-01-15",
@@ -229,6 +248,58 @@ describe("SyncService", () => {
 
       expect(mockStatsRepo.findOne).toHaveBeenCalled();
       expect(mockStatsRepo.create).not.toHaveBeenCalled();
+      expect(mockStatsRepo.save).toHaveBeenCalled();
+      expect(result).toHaveLength(1);
+    });
+
+    it("should skip update when incoming syncedAt is older (last-write-wins)", async () => {
+      const dto: PushStatsDto = {
+        userId: "user-uuid-1",
+        date: "2026-01-15",
+        totalFocusMinutes: 180,
+        sessionsCompleted: 6,
+        distractionAttempts: 10,
+        averageFocusScore: 88,
+        syncedAt: "2026-01-14T00:00:00Z",
+      };
+
+      const existingStats = createMockStats({
+        syncedAt: new Date("2026-01-15T23:00:00Z"),
+      });
+
+      vi.mocked(mockStatsRepo.findOne!).mockResolvedValue(existingStats);
+
+      const result = await service.pushStats([dto]);
+
+      expect(mockStatsRepo.save).not.toHaveBeenCalled();
+      expect(result).toHaveLength(1);
+      expect(result[0]).toBe(existingStats);
+    });
+
+    it("should update when incoming syncedAt is newer (last-write-wins)", async () => {
+      const dto: PushStatsDto = {
+        userId: "user-uuid-1",
+        date: "2026-01-15",
+        totalFocusMinutes: 200,
+        sessionsCompleted: 8,
+        distractionAttempts: 12,
+        averageFocusScore: 92,
+        syncedAt: "2026-01-16T10:00:00Z",
+      };
+
+      const existingStats = createMockStats({
+        syncedAt: new Date("2026-01-15T23:00:00Z"),
+      });
+      const updatedStats = createMockStats({
+        totalFocusMinutes: 200,
+        sessionsCompleted: 8,
+      });
+
+      vi.mocked(mockStatsRepo.findOne!).mockResolvedValue(existingStats);
+      vi.mocked(mockStatsRepo.save!).mockResolvedValue(updatedStats);
+
+      const result = await service.pushStats([dto]);
+
       expect(mockStatsRepo.save).toHaveBeenCalled();
       expect(result).toHaveLength(1);
     });
@@ -272,6 +343,68 @@ describe("SyncService", () => {
       const result = await service.pullStats("nonexistent-user");
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe("pushConfig", () => {
+    it("should create new config when none exists", async () => {
+      const configData = { theme: "dark", lockLevel: 3 };
+      const mockEntity = createMockConfig({ configData });
+
+      vi.mocked(mockConfigRepo.findOne!).mockResolvedValue(null);
+      vi.mocked(mockConfigRepo.create!).mockReturnValue(mockEntity);
+      vi.mocked(mockConfigRepo.save!).mockResolvedValue(mockEntity);
+
+      const result = await service.pushConfig("user-uuid-1", configData);
+
+      expect(mockConfigRepo.findOne).toHaveBeenCalledWith({
+        where: { userId: "user-uuid-1" },
+      });
+      expect(mockConfigRepo.create).toHaveBeenCalledWith({
+        userId: "user-uuid-1",
+        configData,
+      });
+      expect(mockConfigRepo.save).toHaveBeenCalled();
+      expect(result.configData).toEqual(configData);
+    });
+
+    it("should update existing config (upsert)", async () => {
+      const existingConfig = createMockConfig({
+        configData: { theme: "light" },
+      });
+      const newConfigData = { theme: "dark", lockLevel: 5 };
+      const updatedConfig = createMockConfig({ configData: newConfigData });
+
+      vi.mocked(mockConfigRepo.findOne!).mockResolvedValue(existingConfig);
+      vi.mocked(mockConfigRepo.save!).mockResolvedValue(updatedConfig);
+
+      const result = await service.pushConfig("user-uuid-1", newConfigData);
+
+      expect(mockConfigRepo.create).not.toHaveBeenCalled();
+      expect(mockConfigRepo.save).toHaveBeenCalled();
+      expect(result.configData).toEqual(newConfigData);
+    });
+  });
+
+  describe("pullConfig", () => {
+    it("should return config for a user", async () => {
+      const config = createMockConfig();
+      vi.mocked(mockConfigRepo.findOne!).mockResolvedValue(config);
+
+      const result = await service.pullConfig("user-uuid-1");
+
+      expect(mockConfigRepo.findOne).toHaveBeenCalledWith({
+        where: { userId: "user-uuid-1" },
+      });
+      expect(result).toBe(config);
+    });
+
+    it("should return null when no config exists", async () => {
+      vi.mocked(mockConfigRepo.findOne!).mockResolvedValue(null);
+
+      const result = await service.pullConfig("nonexistent-user");
+
+      expect(result).toBeNull();
     });
   });
 });

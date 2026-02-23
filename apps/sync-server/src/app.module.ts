@@ -3,9 +3,11 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { HealthModule } from "./health/health.module";
 import { UsersModule } from "./users/users.module";
 import { SyncModule } from "./sync/sync.module";
+import { AuthModule } from "./auth/auth.module";
 import { User } from "./users/user.entity";
 import { SyncSession } from "./sync/sync-session.entity";
 import { SyncStats } from "./sync/sync-stats.entity";
+import { SyncConfig } from "./sync/sync-config.entity";
 
 @Module({
   imports: [
@@ -16,12 +18,13 @@ import { SyncStats } from "./sync/sync-stats.entity";
       username: process.env["DB_USERNAME"] ?? "focus",
       password: process.env["DB_PASSWORD"] ?? "focus",
       database: process.env["DB_NAME"] ?? "focus_shield",
-      entities: [User, SyncSession, SyncStats],
+      entities: [User, SyncSession, SyncStats, SyncConfig],
       synchronize: process.env["NODE_ENV"] !== "production",
       logging: process.env["NODE_ENV"] === "development",
     }),
     HealthModule,
     UsersModule,
+    AuthModule,
     SyncModule,
   ],
 })
