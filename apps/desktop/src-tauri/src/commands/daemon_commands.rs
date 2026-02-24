@@ -178,3 +178,47 @@ pub async fn daemon_list_processes() -> Result<Vec<JsProcessInfo>, FocusError> {
 
     Ok(processes)
 }
+
+/// Extension connection info returned to frontend
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JsExtensionInfo {
+    pub extension_id: String,
+    pub browser: String,
+    pub version: String,
+    pub connected_at: String,
+    pub incognito_allowed: bool,
+}
+
+/// Extension status returned to frontend
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JsExtensionStatus {
+    pub connected: bool,
+    pub connections: Vec<JsExtensionInfo>,
+}
+
+/// Get extension connection status via the daemon
+#[tauri::command]
+pub async fn daemon_extension_status() -> Result<JsExtensionStatus, FocusError> {
+    let request = DaemonRequest::new(DaemonCommand::GetExtensionStatus);
+    let response = DaemonClient::send(&request).await?;
+
+    if !response.success {
+        let err = response.error.unwrap_or_default();
+        return Err(FocusError::daemon_error(format!("[{}] {}", err.code, err.message)));
+    }
+
+    let data = response
+        .data
+        .ok_or_else(|| FocusError::daemon_error("Missing extension status data"))?;
+
+    let connected = data.get("connected").and_then(|v| v.as_bool()).unwrap_or(false);
+    let connections: Vec<JsExtensionInfo> = match data.get("connections") {
+        Some(conns) => serde_json::from_value(conns.clone())
+            .map_err(|e| FocusError::daemon_error(format!("Failed to parse extensions: {}", e)))?,
+        None => Vec::new(),
+    };
+
+    Ok(JsExtensionStatus { connected, connections })
+}

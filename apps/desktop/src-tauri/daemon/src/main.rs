@@ -3,6 +3,7 @@ use std::sync::Arc;
 use focus_shield_daemon::handler::DaemonState;
 use focus_shield_daemon::hosts_manager::HostsManager;
 use focus_shield_daemon::server::run_server;
+use focus_shield_daemon::ws_server::{run_ws_server, WsState};
 
 #[tokio::main]
 async fn main() {
@@ -23,13 +24,23 @@ async fn main() {
     }
 
     let state = DaemonState::new();
+    let ws_state = WsState::new();
 
     // Write PID file for the main app to find us
     if let Err(e) = write_pid_file() {
         log::warn!("Failed to write PID file: {}", e);
     }
 
-    // Run the IPC server
+    // Spawn the WebSocket server for extension communication
+    let ws_daemon_state = Arc::clone(&state);
+    let ws_state_clone = Arc::clone(&ws_state);
+    tokio::spawn(async move {
+        if let Err(e) = run_ws_server(ws_daemon_state, ws_state_clone).await {
+            log::error!("WebSocket server error: {}", e);
+        }
+    });
+
+    // Run the IPC server (blocks until shutdown)
     if let Err(e) = run_server(Arc::clone(&state)).await {
         log::error!("Server error: {}", e);
         std::process::exit(1);

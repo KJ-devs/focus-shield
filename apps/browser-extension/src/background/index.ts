@@ -4,7 +4,17 @@
  * Manages declarativeNetRequest rules to block distraction domains,
  * tracks blocking state and distraction counts, and responds to
  * messages from the popup and blocked page.
+ *
+ * Communicates with the desktop daemon via WebSocket for session sync.
  */
+
+import type { DesktopMessage } from "@focus-shield/shared-types";
+import {
+  connectToDesktop,
+  onDesktopMessage,
+  reportDistraction,
+  reportBlockingConfirmed,
+} from "./desktop-client";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -286,7 +296,66 @@ chrome.alarms.onAlarm.addListener(async (alarm: chrome.alarms.Alarm) => {
 if (chrome.declarativeNetRequest.onRuleMatchedDebug) {
   chrome.declarativeNetRequest.onRuleMatchedDebug.addListener(async () => {
     await incrementDistractionCount();
+    // Report blocked distraction to desktop
+    const state = await getBlockingState();
+    if (state.isActive && state.blockedDomains.length > 0) {
+      reportDistraction(state.blockedDomains[0] ?? "unknown");
+    }
   });
 }
+
+// ---------------------------------------------------------------------------
+// Desktop daemon communication
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle messages received from the desktop daemon via WebSocket.
+ */
+onDesktopMessage(async (message: DesktopMessage) => {
+  switch (message.type) {
+    case "desktop:start_blocking": {
+      const endTime =
+        message.endTime ?? new Date(Date.now() + 3600_000).toISOString();
+      await activateBlocking(message.domains, message.sessionId, endTime);
+      // Confirm rules applied
+      const rules = await chrome.declarativeNetRequest.getDynamicRules();
+      reportBlockingConfirmed(rules.length);
+      break;
+    }
+
+    case "desktop:stop_blocking": {
+      const state = await getBlockingState();
+      if (state.sessionId === message.sessionId || state.isActive) {
+        await deactivateBlocking();
+      }
+      break;
+    }
+
+    case "desktop:status": {
+      // Sync status — if desktop says blocking is active but extension is not,
+      // this is a stale state from before extension connected. Desktop will
+      // send start_blocking explicitly when needed.
+      break;
+    }
+
+    case "desktop:welcome": {
+      // Connection established. If desktop has an active session,
+      // request full status to sync.
+      if (message.activeSessionId) {
+        const { sendToDesktop } = await import("./desktop-client");
+        sendToDesktop({ type: "ext:status_request" });
+      }
+      break;
+    }
+
+    case "desktop:incognito_warning": {
+      console.warn("[Focus Shield]", message.message);
+      break;
+    }
+  }
+});
+
+// Connect to desktop daemon on service worker startup
+connectToDesktop();
 
 export {};

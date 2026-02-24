@@ -1,0 +1,9 @@
+{
+  "name": "com.focusshield.daemon",
+  "description": "Focus Shield native messaging host for browser extension communication",
+  "path": "PLACEHOLDER_PATH_SET_AT_INSTALL",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://EXTENSION_ID_PLACEHOLDER/"
+  ]
+}

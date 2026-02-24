@@ -8,3 +8,4 @@ export * from "./gamification";
 export * from "./events";
 export * from "./presets";
 export * from "./daemon";
+export * from "./extension-protocol";

@@ -9,7 +9,8 @@ export type DaemonCommandType =
   | "get_status"
   | "health_check"
   | "shutdown"
-  | "list_processes";
+  | "list_processes"
+  | "get_extension_status";
 
 // Domain rule sent to daemon for blocking
 export interface DaemonDomainRule {

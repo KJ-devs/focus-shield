@@ -17,6 +17,7 @@ pub enum DaemonCommand {
     HealthCheck,
     Shutdown,
     ListProcesses,
+    GetExtensionStatus,
 }
 
 /// Process blocking action

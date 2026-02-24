@@ -18,6 +18,16 @@ pub struct BlockingState {
     pub blocked_processes: Vec<ProcessRule>,
 }
 
+/// Info about a connected browser extension (stored in DaemonState).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ExtensionInfo {
+    pub extension_id: String,
+    pub browser: String,
+    pub version: String,
+    pub connected_at: String,
+    pub incognito_allowed: bool,
+}
+
 /// Shared daemon state accessible across connections
 pub struct DaemonState {
     pub blocking: RwLock<BlockingState>,
@@ -25,12 +35,18 @@ pub struct DaemonState {
     pub watcher_cancel: Arc<tokio::sync::Notify>,
     pub start_time: Instant,
     pub shutdown_signal: tokio::sync::Notify,
+    /// Broadcast channel for pushing events to WebSocket-connected extensions.
+    /// Serialized JSON messages are sent through this channel.
+    pub extension_broadcast: tokio::sync::broadcast::Sender<String>,
+    /// Currently connected browser extensions.
+    pub extensions: RwLock<Vec<ExtensionInfo>>,
 }
 
 impl DaemonState {
     pub fn new() -> Arc<Self> {
         let watcher = Arc::new(RwLock::new(WatcherState::new()));
         let watcher_cancel = Arc::new(tokio::sync::Notify::new());
+        let (broadcast_tx, _) = tokio::sync::broadcast::channel(64);
 
         // Spawn the watcher background task
         let watcher_clone = watcher.clone();
@@ -46,18 +62,23 @@ impl DaemonState {
             watcher_cancel,
             start_time: Instant::now(),
             shutdown_signal: tokio::sync::Notify::new(),
+            extension_broadcast: broadcast_tx,
+            extensions: RwLock::new(Vec::new()),
         })
     }
 
     /// Create a new state without spawning the watcher (for tests)
     #[cfg(test)]
     pub fn new_for_test() -> Arc<Self> {
+        let (broadcast_tx, _) = tokio::sync::broadcast::channel(64);
         Arc::new(Self {
             blocking: RwLock::new(BlockingState::default()),
             watcher: Arc::new(RwLock::new(WatcherState::new())),
             watcher_cancel: Arc::new(tokio::sync::Notify::new()),
             start_time: Instant::now(),
             shutdown_signal: tokio::sync::Notify::new(),
+            extension_broadcast: broadcast_tx,
+            extensions: RwLock::new(Vec::new()),
         })
     }
 
@@ -80,6 +101,7 @@ pub async fn handle_request(
         DaemonCommand::HealthCheck => handle_health_check(state, request).await,
         DaemonCommand::Shutdown => handle_shutdown(state, request).await,
         DaemonCommand::ListProcesses => handle_list_processes(state, request).await,
+        DaemonCommand::GetExtensionStatus => handle_get_extension_status(state, request).await,
     }
 }
 
@@ -147,6 +169,17 @@ async fn handle_start_blocking(
         0
     };
 
+    // Notify connected extensions to start blocking
+    let ext_msg = serde_json::json!({
+        "type": "desktop:start_blocking",
+        "sessionId": blocking.active_session_id,
+        "domains": blocking.blocked_domains.iter().map(|d| &d.pattern).collect::<Vec<_>>(),
+        "endTime": null as Option<String>,
+    });
+    if let Ok(json) = serde_json::to_string(&ext_msg) {
+        let _ = state.extension_broadcast.send(json);
+    }
+
     DaemonResponse::ok_with_data(
         request.id,
         &serde_json::json!({
@@ -203,6 +236,15 @@ async fn handle_stop_blocking(
                     }
                 }
             };
+
+            // Notify connected extensions to stop blocking
+            let ext_msg = serde_json::json!({
+                "type": "desktop:stop_blocking",
+                "sessionId": payload.session_id,
+            });
+            if let Ok(json) = serde_json::to_string(&ext_msg) {
+                let _ = state.extension_broadcast.send(json);
+            }
 
             DaemonResponse::ok_with_data(
                 request.id,
@@ -310,6 +352,20 @@ async fn handle_list_processes(
         &serde_json::json!({
             "processes": processes,
             "count": processes.len(),
+        }),
+    )
+}
+
+async fn handle_get_extension_status(
+    state: &Arc<DaemonState>,
+    request: DaemonRequest,
+) -> DaemonResponse {
+    let extensions = state.extensions.read().await;
+    DaemonResponse::ok_with_data(
+        request.id,
+        &serde_json::json!({
+            "connected": !extensions.is_empty(),
+            "connections": *extensions,
         }),
     )
 }

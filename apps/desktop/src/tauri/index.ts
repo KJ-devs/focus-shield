@@ -6,4 +6,5 @@ export {
   daemonStartBlocking,
   daemonStopBlocking,
   daemonListProcesses,
+  daemonExtensionStatus,
 } from "./daemon";
