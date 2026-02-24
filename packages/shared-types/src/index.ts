@@ -7,3 +7,4 @@ export * from "./stats";
 export * from "./gamification";
 export * from "./events";
 export * from "./presets";
+export * from "./daemon";
