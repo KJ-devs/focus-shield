@@ -4,6 +4,8 @@ pub mod server;
 pub mod client;
 pub mod process_monitor;
 pub mod process_watcher;
+pub mod hosts_manager;
+pub mod privilege;
 
 pub use client::DaemonClient;
 pub use protocol::{
@@ -16,3 +18,5 @@ pub use server::run_server;
 pub use handler::DaemonState;
 pub use process_monitor::{ProcessInfo, BlockActionResult, ProcessMonitor};
 pub use process_watcher::WatcherState;
+pub use hosts_manager::HostsManager;
+pub use privilege::{is_elevated, can_write_hosts};

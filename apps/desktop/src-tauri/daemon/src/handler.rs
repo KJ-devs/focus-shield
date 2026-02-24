@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use tokio::sync::RwLock;
 
+use crate::hosts_manager::HostsManager;
 use crate::process_watcher::{self, WatcherState, DEFAULT_SCAN_INTERVAL_MS};
 use crate::protocol::{
     DaemonCommand, DaemonRequest, DaemonResponse, DaemonStatus, DomainRule,
@@ -124,12 +125,33 @@ async fn handle_start_blocking(
         );
     }
 
-    // NOTE: Hosts file modification will be implemented in US-12.
+    // Block domains in the hosts file
+    let domains: Vec<String> = blocking
+        .blocked_domains
+        .iter()
+        .map(|d| d.pattern.clone())
+        .collect();
+    let hosts_blocked = if !domains.is_empty() {
+        let hosts = HostsManager::new();
+        match hosts.add_blocked_domains(&domains) {
+            Ok(count) => {
+                log::info!("Blocked {} domain(s) in hosts file", count);
+                count
+            }
+            Err(e) => {
+                log::warn!("Failed to modify hosts file (continuing without): {}", e);
+                0
+            }
+        }
+    } else {
+        0
+    };
 
     DaemonResponse::ok_with_data(
         request.id,
         &serde_json::json!({
             "processes_blocked": blocked_count,
+            "hosts_blocked": hosts_blocked,
             "actions": results,
         }),
     )
@@ -165,7 +187,22 @@ async fn handle_stop_blocking(
             blocking.blocked_domains.clear();
             blocking.blocked_processes.clear();
 
-            // NOTE: Hosts file rollback will be implemented in US-12.
+            // Rollback hosts file
+            let hosts_rolled_back = {
+                let hosts = HostsManager::new();
+                match hosts.remove_blocked_domains() {
+                    Ok(removed) => {
+                        if removed {
+                            log::info!("Hosts file entries removed (rollback)");
+                        }
+                        removed
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to rollback hosts file: {}", e);
+                        false
+                    }
+                }
+            };
 
             DaemonResponse::ok_with_data(
                 request.id,
@@ -173,6 +210,7 @@ async fn handle_stop_blocking(
                     "processes_resumed": resumed_count,
                     "total_blocked": total_blocked,
                     "respawn_blocks": respawn_blocks,
+                    "hosts_rolled_back": hosts_rolled_back,
                 }),
             )
         }
@@ -240,6 +278,12 @@ async fn handle_shutdown(
 
     // Stop the watcher background task
     state.watcher_cancel.notify_one();
+
+    // Rollback hosts file if there are active entries
+    let hosts = HostsManager::new();
+    if let Err(e) = hosts.remove_blocked_domains() {
+        log::warn!("Failed to rollback hosts file during shutdown: {}", e);
+    }
 
     // Clean up blocking state
     let mut blocking = state.blocking.write().await;

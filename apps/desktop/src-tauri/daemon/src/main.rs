@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use focus_shield_daemon::handler::DaemonState;
+use focus_shield_daemon::hosts_manager::HostsManager;
 use focus_shield_daemon::server::run_server;
 
 #[tokio::main]
@@ -15,6 +16,12 @@ async fn main() {
         std::process::id()
     );
 
+    // Watchdog: clean up stale hosts entries from a previous crash
+    let hosts = HostsManager::new();
+    if let Err(e) = hosts.cleanup_stale_entries() {
+        log::warn!("Failed to clean up stale hosts entries: {}", e);
+    }
+
     let state = DaemonState::new();
 
     // Write PID file for the main app to find us
@@ -26,6 +33,12 @@ async fn main() {
     if let Err(e) = run_server(Arc::clone(&state)).await {
         log::error!("Server error: {}", e);
         std::process::exit(1);
+    }
+
+    // Cleanup hosts file entries on graceful shutdown (safety net)
+    let hosts = HostsManager::new();
+    if let Err(e) = hosts.remove_blocked_domains() {
+        log::warn!("Failed to clean hosts file on shutdown: {}", e);
     }
 
     // Cleanup PID file on graceful shutdown
