@@ -8,7 +8,8 @@ export type DaemonCommandType =
   | "stop_blocking"
   | "get_status"
   | "health_check"
-  | "shutdown";
+  | "shutdown"
+  | "list_processes";
 
 // Domain rule sent to daemon for blocking
 export interface DaemonDomainRule {
@@ -70,6 +71,21 @@ export interface DaemonHealthCheck {
   alive: boolean;
   version: string;
   uptimeSeconds: number;
+}
+
+// Process info returned by list_processes command
+export interface DaemonProcessInfo {
+  pid: number;
+  name: string;
+}
+
+// Result of a blocking action on a process
+export interface ProcessBlockActionResult {
+  pid: number;
+  name: string;
+  action: ProcessAction;
+  success: boolean;
+  error?: string;
 }
 
 // Daemon connection configuration

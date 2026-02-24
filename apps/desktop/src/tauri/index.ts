@@ -5,4 +5,5 @@ export {
   daemonHealthCheck,
   daemonStartBlocking,
   daemonStopBlocking,
+  daemonListProcesses,
 } from "./daemon";

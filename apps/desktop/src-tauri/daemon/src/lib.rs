@@ -2,6 +2,8 @@ pub mod protocol;
 pub mod handler;
 pub mod server;
 pub mod client;
+pub mod process_monitor;
+pub mod process_watcher;
 
 pub use client::DaemonClient;
 pub use protocol::{
@@ -12,3 +14,5 @@ pub use protocol::{
 };
 pub use server::run_server;
 pub use handler::DaemonState;
+pub use process_monitor::{ProcessInfo, BlockActionResult, ProcessMonitor};
+pub use process_watcher::WatcherState;

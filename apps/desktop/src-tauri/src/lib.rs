@@ -24,6 +24,7 @@ pub fn run() {
             commands::daemon_start_blocking,
             commands::daemon_stop_blocking,
             commands::daemon_health_check,
+            commands::daemon_list_processes,
         ])
         .setup(|app| {
             // Spawn daemon on app startup in background

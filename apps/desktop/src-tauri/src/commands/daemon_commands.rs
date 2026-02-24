@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use focus_shield_daemon::{
-    DaemonClient, DaemonStatus, StartBlockingPayload, StopBlockingPayload,
+    DaemonClient, DaemonCommand, DaemonRequest, DaemonStatus,
+    StartBlockingPayload, StopBlockingPayload,
     DomainRule, ProcessRule, ProcessAction,
 };
 
@@ -145,4 +146,35 @@ pub async fn daemon_stop_blocking(
 #[tauri::command]
 pub async fn daemon_health_check() -> Result<bool, FocusError> {
     Ok(DaemonClient::health_check().await.unwrap_or(false))
+}
+
+/// Process info returned to frontend
+#[derive(Debug, Serialize)]
+pub struct JsProcessInfo {
+    pub pid: u32,
+    pub name: String,
+}
+
+/// List running processes via the daemon
+#[tauri::command]
+pub async fn daemon_list_processes() -> Result<Vec<JsProcessInfo>, FocusError> {
+    let request = DaemonRequest::new(DaemonCommand::ListProcesses);
+    let response = DaemonClient::send(&request).await?;
+
+    if !response.success {
+        let err = response.error.unwrap_or_default();
+        return Err(FocusError::daemon_error(format!("[{}] {}", err.code, err.message)));
+    }
+
+    let data = response
+        .data
+        .ok_or_else(|| FocusError::daemon_error("Missing process list data"))?;
+
+    let processes: Vec<JsProcessInfo> = match data.get("processes") {
+        Some(procs) => serde_json::from_value(procs.clone())
+            .map_err(|e| FocusError::daemon_error(format!("Failed to parse processes: {}", e)))?,
+        None => Vec::new(),
+    };
+
+    Ok(processes)
 }

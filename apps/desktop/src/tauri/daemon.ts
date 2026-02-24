@@ -3,6 +3,7 @@ import type {
   DaemonStatusData,
   DaemonDomainRule,
   DaemonProcessRule,
+  DaemonProcessInfo,
 } from "@focus-shield/shared-types";
 
 /** Ensure the daemon sidecar is running */
@@ -43,4 +44,9 @@ export async function daemonStartBlocking(
 /** Stop blocking for a session */
 export async function daemonStopBlocking(sessionId: string): Promise<void> {
   return invoke("daemon_stop_blocking", { sessionId });
+}
+
+/** List all running processes via the daemon */
+export async function daemonListProcesses(): Promise<DaemonProcessInfo[]> {
+  return invoke("daemon_list_processes");
 }

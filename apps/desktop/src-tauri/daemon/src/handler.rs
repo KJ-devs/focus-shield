@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use tokio::sync::RwLock;
 
+use crate::process_watcher::{self, WatcherState, DEFAULT_SCAN_INTERVAL_MS};
 use crate::protocol::{
     DaemonCommand, DaemonRequest, DaemonResponse, DaemonStatus, DomainRule,
     ProcessRule, StartBlockingPayload, StopBlockingPayload, PROTOCOL_VERSION,
@@ -19,14 +20,41 @@ pub struct BlockingState {
 /// Shared daemon state accessible across connections
 pub struct DaemonState {
     pub blocking: RwLock<BlockingState>,
+    pub watcher: Arc<RwLock<WatcherState>>,
+    pub watcher_cancel: Arc<tokio::sync::Notify>,
     pub start_time: Instant,
     pub shutdown_signal: tokio::sync::Notify,
 }
 
 impl DaemonState {
     pub fn new() -> Arc<Self> {
+        let watcher = Arc::new(RwLock::new(WatcherState::new()));
+        let watcher_cancel = Arc::new(tokio::sync::Notify::new());
+
+        // Spawn the watcher background task
+        let watcher_clone = watcher.clone();
+        let cancel_clone = watcher_cancel.clone();
+        tokio::spawn(async move {
+            process_watcher::run_watcher(watcher_clone, cancel_clone, DEFAULT_SCAN_INTERVAL_MS)
+                .await;
+        });
+
         Arc::new(Self {
             blocking: RwLock::new(BlockingState::default()),
+            watcher,
+            watcher_cancel,
+            start_time: Instant::now(),
+            shutdown_signal: tokio::sync::Notify::new(),
+        })
+    }
+
+    /// Create a new state without spawning the watcher (for tests)
+    #[cfg(test)]
+    pub fn new_for_test() -> Arc<Self> {
+        Arc::new(Self {
+            blocking: RwLock::new(BlockingState::default()),
+            watcher: Arc::new(RwLock::new(WatcherState::new())),
+            watcher_cancel: Arc::new(tokio::sync::Notify::new()),
             start_time: Instant::now(),
             shutdown_signal: tokio::sync::Notify::new(),
         })
@@ -50,6 +78,7 @@ pub async fn handle_request(
         DaemonCommand::GetStatus => handle_get_status(state, request).await,
         DaemonCommand::HealthCheck => handle_health_check(state, request).await,
         DaemonCommand::Shutdown => handle_shutdown(state, request).await,
+        DaemonCommand::ListProcesses => handle_list_processes(state, request).await,
     }
 }
 
@@ -81,13 +110,29 @@ async fn handle_start_blocking(
 
     blocking.active_session_id = Some(payload.session_id);
     blocking.blocked_domains = payload.domains;
-    blocking.blocked_processes = payload.processes;
+    blocking.blocked_processes = payload.processes.clone();
 
-    // NOTE: Actual hosts file modification and process blocking
-    // will be implemented in US-12 (hosts manager) and US-13 (process monitor).
-    // This handler sets up the state that those modules will consume.
+    // Start the process watcher with the given rules
+    let mut watcher = state.watcher.write().await;
+    let results = watcher.start(payload.processes);
 
-    DaemonResponse::ok(request.id)
+    let blocked_count = results.iter().filter(|r| r.success).count();
+    if blocked_count > 0 {
+        log::info!(
+            "Immediately blocked {} process(es) on session start",
+            blocked_count
+        );
+    }
+
+    // NOTE: Hosts file modification will be implemented in US-12.
+
+    DaemonResponse::ok_with_data(
+        request.id,
+        &serde_json::json!({
+            "processes_blocked": blocked_count,
+            "actions": results,
+        }),
+    )
 }
 
 async fn handle_stop_blocking(
@@ -104,14 +149,32 @@ async fn handle_stop_blocking(
     match &blocking.active_session_id {
         Some(active_id) if *active_id == payload.session_id => {
             log::info!("Stopping blocking for session {}", payload.session_id);
+
+            // Stop the process watcher and resume suspended processes
+            let mut watcher = state.watcher.write().await;
+            let resume_results = watcher.stop();
+            let total_blocked = watcher.total_blocked;
+            let respawn_blocks = watcher.respawn_blocks;
+
+            let resumed_count = resume_results.iter().filter(|r| r.success).count();
+            if resumed_count > 0 {
+                log::info!("Resumed {} suspended process(es)", resumed_count);
+            }
+
             blocking.active_session_id = None;
             blocking.blocked_domains.clear();
             blocking.blocked_processes.clear();
 
-            // NOTE: Actual cleanup (hosts file rollback, process resume)
-            // will be implemented in US-12 and US-13.
+            // NOTE: Hosts file rollback will be implemented in US-12.
 
-            DaemonResponse::ok(request.id)
+            DaemonResponse::ok_with_data(
+                request.id,
+                &serde_json::json!({
+                    "processes_resumed": resumed_count,
+                    "total_blocked": total_blocked,
+                    "respawn_blocks": respawn_blocks,
+                }),
+            )
         }
         Some(active_id) => DaemonResponse::err(
             request.id,
@@ -167,15 +230,22 @@ async fn handle_shutdown(
 ) -> DaemonResponse {
     log::info!("Shutdown requested");
 
-    // Clean up blocking state before shutdown
-    let mut blocking = state.blocking.write().await;
-    if blocking.active_session_id.is_some() {
-        log::warn!("Shutting down with active blocking session — cleaning up");
-        blocking.active_session_id = None;
-        blocking.blocked_domains.clear();
-        blocking.blocked_processes.clear();
-        // NOTE: Actual cleanup will be in US-12/US-13
+    // Stop the process watcher and resume all suspended processes
+    let mut watcher = state.watcher.write().await;
+    if watcher.is_active() {
+        log::warn!("Shutting down with active watcher — resuming suspended processes");
+        watcher.stop();
     }
+    drop(watcher);
+
+    // Stop the watcher background task
+    state.watcher_cancel.notify_one();
+
+    // Clean up blocking state
+    let mut blocking = state.blocking.write().await;
+    blocking.active_session_id = None;
+    blocking.blocked_domains.clear();
+    blocking.blocked_processes.clear();
     drop(blocking);
 
     // Signal the main loop to shut down
@@ -184,13 +254,29 @@ async fn handle_shutdown(
     DaemonResponse::ok(request.id)
 }
 
+async fn handle_list_processes(
+    state: &Arc<DaemonState>,
+    request: DaemonRequest,
+) -> DaemonResponse {
+    let mut watcher = state.watcher.write().await;
+    let processes = watcher.list_processes();
+
+    DaemonResponse::ok_with_data(
+        request.id,
+        &serde_json::json!({
+            "processes": processes,
+            "count": processes.len(),
+        }),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[tokio::test]
     async fn should_start_and_stop_blocking() {
-        let state = DaemonState::new();
+        let state = DaemonState::new_for_test();
 
         // Start blocking
         let start_req = DaemonRequest::with_payload(
@@ -233,7 +319,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_reject_duplicate_session() {
-        let state = DaemonState::new();
+        let state = DaemonState::new_for_test();
 
         let start_req = DaemonRequest::with_payload(
             DaemonCommand::StartBlocking,
@@ -262,7 +348,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_reject_stop_wrong_session() {
-        let state = DaemonState::new();
+        let state = DaemonState::new_for_test();
 
         let start_req = DaemonRequest::with_payload(
             DaemonCommand::StartBlocking,
@@ -287,7 +373,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_health_check() {
-        let state = DaemonState::new();
+        let state = DaemonState::new_for_test();
         let req = DaemonRequest::new(DaemonCommand::HealthCheck);
         let res = handle_request(&state, req).await;
         assert!(res.success);
@@ -299,7 +385,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_cleanup_on_shutdown() {
-        let state = DaemonState::new();
+        let state = DaemonState::new_for_test();
 
         // Start a session
         let start_req = DaemonRequest::with_payload(
@@ -322,5 +408,89 @@ mod tests {
         let blocking = state.blocking.read().await;
         assert!(blocking.active_session_id.is_none());
         assert!(blocking.blocked_domains.is_empty());
+    }
+
+    #[tokio::test]
+    async fn should_start_blocking_with_process_rules() {
+        let state = DaemonState::new_for_test();
+
+        let start_req = DaemonRequest::with_payload(
+            DaemonCommand::StartBlocking,
+            &StartBlockingPayload {
+                session_id: "sess-1".to_string(),
+                domains: vec![],
+                processes: vec![
+                    crate::protocol::ProcessRule {
+                        name: "nonexistent-test-process-xyz".to_string(),
+                        aliases: vec![],
+                        action: crate::protocol::ProcessAction::Kill,
+                    },
+                ],
+            },
+        );
+        let res = handle_request(&state, start_req).await;
+        assert!(res.success);
+
+        // The response should include process blocking data
+        let data = res.data.unwrap();
+        assert_eq!(data["processes_blocked"], 0); // No such process exists
+
+        // Watcher should be active
+        let watcher = state.watcher.read().await;
+        assert!(watcher.is_active());
+        assert_eq!(watcher.rules_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn should_list_processes() {
+        let state = DaemonState::new_for_test();
+
+        let req = DaemonRequest::new(DaemonCommand::ListProcesses);
+        let res = handle_request(&state, req).await;
+        assert!(res.success);
+
+        let data = res.data.unwrap();
+        let count = data["count"].as_u64().unwrap();
+        assert!(count > 0, "Should list at least one process");
+    }
+
+    #[tokio::test]
+    async fn should_stop_watcher_on_stop_blocking() {
+        let state = DaemonState::new_for_test();
+
+        // Start with process rules
+        let start_req = DaemonRequest::with_payload(
+            DaemonCommand::StartBlocking,
+            &StartBlockingPayload {
+                session_id: "sess-1".to_string(),
+                domains: vec![],
+                processes: vec![crate::protocol::ProcessRule {
+                    name: "nonexistent-test-xyz".to_string(),
+                    aliases: vec![],
+                    action: crate::protocol::ProcessAction::Suspend,
+                }],
+            },
+        );
+        handle_request(&state, start_req).await;
+
+        // Verify watcher is active
+        {
+            let watcher = state.watcher.read().await;
+            assert!(watcher.is_active());
+        }
+
+        // Stop blocking
+        let stop_req = DaemonRequest::with_payload(
+            DaemonCommand::StopBlocking,
+            &StopBlockingPayload {
+                session_id: "sess-1".to_string(),
+            },
+        );
+        let res = handle_request(&state, stop_req).await;
+        assert!(res.success);
+
+        // Verify watcher is stopped
+        let watcher = state.watcher.read().await;
+        assert!(!watcher.is_active());
     }
 }
