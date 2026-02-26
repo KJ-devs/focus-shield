@@ -10,7 +10,6 @@
     "beforeDevCommand": "pnpm dev"
   },
   "app": {
-    "title": "Focus Shield",
     "windows": [
       {
         "title": "Focus Shield",
@@ -40,10 +39,7 @@
   },
   "plugins": {
     "shell": {
-      "open": true,
-      "scope": {
-        "sidecar": true
-      }
+      "open": true
     }
   }
 }

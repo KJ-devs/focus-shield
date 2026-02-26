@@ -149,7 +149,7 @@ pub async fn daemon_health_check() -> Result<bool, FocusError> {
 }
 
 /// Process info returned to frontend
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct JsProcessInfo {
     pub pid: u32,
     pub name: String,
@@ -180,7 +180,7 @@ pub async fn daemon_list_processes() -> Result<Vec<JsProcessInfo>, FocusError> {
 }
 
 /// Extension connection info returned to frontend
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JsExtensionInfo {
     pub extension_id: String,

@@ -304,7 +304,7 @@ mod platform {
             for tid in &thread_ids {
                 unsafe {
                     let handle = OpenThread(THREAD_SUSPEND_RESUME, 0, *tid);
-                    if handle == 0 {
+                    if handle == std::ptr::null_mut() {
                         log::warn!("Failed to open thread {} of process {}", tid, pid);
                         continue;
                     }
@@ -329,7 +329,7 @@ mod platform {
             for tid in &thread_ids {
                 unsafe {
                     let handle = OpenThread(THREAD_SUSPEND_RESUME, 0, *tid);
-                    if handle == 0 {
+                    if handle == std::ptr::null_mut() {
                         continue;
                     }
 

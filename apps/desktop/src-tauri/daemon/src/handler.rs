@@ -174,7 +174,7 @@ async fn handle_start_blocking(
         "type": "desktop:start_blocking",
         "sessionId": blocking.active_session_id,
         "domains": blocking.blocked_domains.iter().map(|d| &d.pattern).collect::<Vec<_>>(),
-        "endTime": null as Option<String>,
+        "endTime": serde_json::Value::Null,
     });
     if let Ok(json) = serde_json::to_string(&ext_msg) {
         let _ = state.extension_broadcast.send(json);
