@@ -1,5 +1,8 @@
 import { create } from "zustand";
 import type { LockLevel, SessionBlock } from "@focus-shield/shared-types";
+import { daemonStartBlocking, daemonStopBlocking } from "@/tauri/daemon";
+import { useBlocklistStore } from "@/stores/blocklist-store";
+import type { DaemonDomainRule, DaemonProcessRule } from "@focus-shield/shared-types";
 
 // ---------------------------------------------------------------------------
 // Token config (mirrors @focus-shield/crypto TOKEN_CONFIG for browser use)
@@ -151,6 +154,8 @@ export interface SessionState {
   phase: SessionPhase;
   config: SessionConfig | null;
   token: string | null;
+  tokenHash: string | null;
+  sessionRunId: string | null;
   tokenCountdown: number;
   timeRemainingMs: number;
   currentBlockIndex: number;
@@ -193,6 +198,58 @@ const MOCK_TODAY_STATS: TodayStats = {
 const TOKEN_DISPLAY_SECONDS = 10;
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+async function sha256(value: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(value);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function generateSessionRunId(): string {
+  return `run-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function getEnabledBlockingRules(): {
+  domains: DaemonDomainRule[];
+  processes: DaemonProcessRule[];
+} {
+  const blocklists = useBlocklistStore.getState().blocklists;
+  const enabled = blocklists.filter((b) => b.enabled);
+
+  const domains: DaemonDomainRule[] = enabled.flatMap((b) =>
+    b.domains.map((pattern) => ({ pattern })),
+  );
+
+  const processes: DaemonProcessRule[] = enabled.flatMap((b) =>
+    b.processes.map((name) => ({ name, aliases: [], action: "kill" as const })),
+  );
+
+  return { domains, processes };
+}
+
+async function activateBlocking(sessionRunId: string): Promise<void> {
+  try {
+    const { domains, processes } = getEnabledBlockingRules();
+    if (domains.length === 0 && processes.length === 0) return;
+    await daemonStartBlocking(sessionRunId, domains, processes);
+  } catch {
+    // Daemon may not be running — extension-level blocking still applies via WebSocket
+  }
+}
+
+async function deactivateBlocking(sessionRunId: string): Promise<void> {
+  try {
+    await daemonStopBlocking(sessionRunId);
+  } catch {
+    // Ignore — session is ending anyway
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
 
@@ -200,6 +257,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   phase: "idle",
   config: null,
   token: null,
+  tokenHash: null,
+  sessionRunId: null,
   tokenCountdown: 0,
   timeRemainingMs: 0,
   currentBlockIndex: 0,
@@ -232,9 +291,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
     // Level 5 (Nuclear) — skip token display, go straight to active
     if (config.lockLevel === 5) {
+      const runId = generateSessionRunId();
       set({
         phase: "active",
         token: null,
+        tokenHash: null,
+        sessionRunId: runId,
         tokenCountdown: 0,
         timeRemainingMs: config.durationMs,
         currentBlockIndex: 0,
@@ -243,13 +305,19 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         isSessionActive: true,
         currentSessionName: config.presetName,
       });
+      void activateBlocking(runId);
       return;
     }
 
     const newToken = generateTokenBrowser(config.lockLevel);
+    // Hash the token asynchronously — store hash once ready, display plaintext meanwhile
+    sha256(newToken).then((hash) => {
+      set({ tokenHash: hash });
+    });
     set({
       phase: "token-display",
       token: newToken,
+      tokenHash: null,
       tokenCountdown: TOKEN_DISPLAY_SECONDS,
     });
   },
@@ -260,13 +328,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
     const next = state.tokenCountdown - 1;
     if (next <= 0) {
-      // Auto-start session, clear plaintext token
+      // Auto-start session, clear plaintext token (keep hash)
       const config = state.config;
       if (!config) return;
 
+      const runId = generateSessionRunId();
       set({
         phase: "active",
         token: null,
+        sessionRunId: runId,
         tokenCountdown: 0,
         timeRemainingMs: config.durationMs,
         currentBlockIndex: 0,
@@ -275,6 +345,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         isSessionActive: true,
         currentSessionName: config.presetName,
       });
+      void activateBlocking(runId);
     } else {
       set({ tokenCountdown: next });
     }
@@ -284,9 +355,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { config } = get();
     if (!config) return;
 
+    const runId = generateSessionRunId();
     set({
       phase: "active",
       token: null,
+      sessionRunId: runId,
       tokenCountdown: 0,
       timeRemainingMs: config.durationMs,
       currentBlockIndex: 0,
@@ -295,6 +368,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       isSessionActive: true,
       currentSessionName: config.presetName,
     });
+    void activateBlocking(runId);
   },
 
   tick: () => {
@@ -312,6 +386,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           0,
           Math.min(100, 100 - state.distractionCount * 5),
         );
+
+        if (state.sessionRunId) void deactivateBlocking(state.sessionRunId);
 
         return {
           phase: "review" as const,
@@ -371,6 +447,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       Math.min(100, 100 - state.distractionCount * 5),
     );
 
+    if (state.sessionRunId) void deactivateBlocking(state.sessionRunId);
+
     set({
       phase: "review",
       timeRemainingMs: 0,
@@ -399,6 +477,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       ),
     );
 
+    if (state.sessionRunId) void deactivateBlocking(state.sessionRunId);
+
     set({
       phase: "review",
       timeRemainingMs: 0,
@@ -420,6 +500,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       phase: "idle",
       config: null,
       token: null,
+      tokenHash: null,
+      sessionRunId: null,
       tokenCountdown: 0,
       timeRemainingMs: 0,
       currentBlockIndex: 0,
@@ -432,6 +514,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   startQuickSession: (name: string, durationMs: number) => {
+    const runId = generateSessionRunId();
     set({
       phase: "active",
       config: {
@@ -442,6 +525,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         blocks: [{ type: "focus", duration: durationMs / 60000, blockingEnabled: true }],
       },
       token: null,
+      tokenHash: null,
+      sessionRunId: runId,
       tokenCountdown: 0,
       timeRemainingMs: durationMs,
       currentBlockIndex: 0,
@@ -451,6 +536,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       currentSessionName: name,
       review: null,
     });
+    void activateBlocking(runId);
   },
 
   stopSession: () => {

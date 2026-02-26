@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { TOKEN_CONFIG } from "@/stores/session-store";
 
 interface PasswordInputProps {
-  onSubmit: (value: string) => void;
+  onSubmit: (value: string) => Promise<boolean> | boolean;
   onCancel: () => void;
   lockLevel: LockLevel;
 }
@@ -70,7 +70,7 @@ export function PasswordInput({ onSubmit, onCancel, lockLevel }: PasswordInputPr
   );
 
   const handleSubmit = useCallback(
-    (e: FormEvent) => {
+    async (e: FormEvent) => {
       e.preventDefault();
       setError(null);
 
@@ -84,27 +84,28 @@ export function PasswordInput({ onSubmit, onCancel, lockLevel }: PasswordInputPr
         return;
       }
 
-      const newAttempts = attempts + 1;
+      const valid = await onSubmit(value);
 
-      if (newAttempts >= MAX_ATTEMPTS) {
-        const endTime = Date.now() + RATE_LIMIT_COOLDOWN_MS;
-        setCooldownEndTime(endTime);
-        setCooldownRemaining(Math.ceil(RATE_LIMIT_COOLDOWN_MS / 1000));
+      if (!valid) {
+        const newAttempts = attempts + 1;
         setAttempts(newAttempts);
-        setError(`Too many attempts. Locked for 5 minutes.`);
+
+        if (newAttempts >= MAX_ATTEMPTS) {
+          const endTime = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+          setCooldownEndTime(endTime);
+          setCooldownRemaining(Math.ceil(RATE_LIMIT_COOLDOWN_MS / 1000));
+          setError(`Too many attempts. Locked for 5 minutes.`);
+        } else {
+          setError(`Invalid token. ${MAX_ATTEMPTS - newAttempts} attempt${MAX_ATTEMPTS - newAttempts !== 1 ? "s" : ""} remaining.`);
+        }
         setValue("");
         setConfirmValue("");
-        return;
       }
-
-      setAttempts(newAttempts);
-      onSubmit(value);
     },
     [value, confirmValue, attempts, cooldownEndTime, cooldownRemaining, requiresDoubleEntry, onSubmit],
   );
 
   const isInputDisabled = entryCooldownRemaining > 0 || cooldownEndTime !== null;
-  const remainingAttempts = MAX_ATTEMPTS - attempts;
 
   return (
     <div className="mx-auto w-full max-w-md">
@@ -206,12 +207,6 @@ export function PasswordInput({ onSubmit, onCancel, lockLevel }: PasswordInputPr
             </div>
           )}
 
-          {/* Attempts remaining */}
-          {cooldownEndTime === null && attempts > 0 && (
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-              {remainingAttempts} attempt{remainingAttempts !== 1 ? "s" : ""} remaining
-            </p>
-          )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-2">
