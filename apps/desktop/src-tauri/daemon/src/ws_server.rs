@@ -283,6 +283,20 @@ async fn handle_extension_message(
             // Send welcome with current state
             let blocking = daemon_state.blocking.read().await;
             let active_session = blocking.active_session_id.clone();
+
+            // If a blocking session is already active, resend start_blocking so the
+            // newly-connected extension immediately applies the correct rules.
+            if let Some(ref session_id) = active_session {
+                let start_msg = serde_json::json!({
+                    "type": "desktop:start_blocking",
+                    "sessionId": session_id,
+                    "domains": blocking.blocked_domains.iter().map(|d| &d.pattern).collect::<Vec<_>>(),
+                    "endTime": serde_json::Value::Null,
+                });
+                if let Ok(json) = serde_json::to_string(&start_msg) {
+                    let _ = daemon_state.extension_broadcast.send(json);
+                }
+            }
             drop(blocking);
 
             // Warn if incognito not allowed
