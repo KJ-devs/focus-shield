@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { Badge } from "@/components/ui/Badge";
+import { ExtensionBanner } from "@/components/settings/ExtensionInstall";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -248,6 +249,8 @@ export function HomePage() {
           {isSessionActive ? "Session active!" : "Ready to focus?"}
         </p>
       </div>
+
+      <ExtensionBanner />
 
       {isSessionActive ? <ActiveSessionSection /> : <QuickStartSection />}
 
