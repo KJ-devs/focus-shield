@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "tsc --noEmit && vite build",
-    "build:chrome": "cross-env TARGET=chrome vite build",
-    "build:firefox": "cross-env TARGET=firefox vite build",
+    "build:chrome": "tsc --noEmit && vite build",
+    "build:firefox": "tsc --noEmit && vite build && node scripts/build-firefox.js",
     "type-check": "tsc --noEmit",
     "lint": "eslint src/",
     "clean": "rm -rf dist",

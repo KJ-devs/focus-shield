@@ -48,7 +48,8 @@ const ALL_BROWSERS: BrowserInfo[] = [
 ];
 
 // The relative path from the project root to the extension folder
-const EXTENSION_PATH = "apps/browser-extension";
+const EXTENSION_PATH_CHROME = "apps/browser-extension";
+const EXTENSION_PATH_FIREFOX = "apps/browser-extension/dist-firefox";
 
 // ---------------------------------------------------------------------------
 // SVG Icons
@@ -378,10 +379,23 @@ function BrowserInstallCard({
               </p>
             </li>
 
+            {/* Step 2.5: Build Firefox version (Firefox only) */}
+            {isFirefox && (
+              <li className="flex gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-focus-100 text-xs font-bold text-focus-700 dark:bg-focus-900/50 dark:text-focus-300">
+                  3
+                </span>
+                <div className="flex-1">
+                  <p>Build the Firefox version first (run in project root):</p>
+                  <CommandCopyBox command="pnpm --filter @focus-shield/browser-extension build:firefox" />
+                </div>
+              </li>
+            )}
+
             {/* Step 3: Load extension */}
             <li className="flex gap-3">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-focus-100 text-xs font-bold text-focus-700 dark:bg-focus-900/50 dark:text-focus-300">
-                3
+                {isFirefox ? "4" : "3"}
               </span>
               <div className="flex-1">
                 <p>
@@ -393,10 +407,10 @@ function BrowserInstallCard({
               </div>
             </li>
 
-            {/* Step 4: Verify */}
+            {/* Step 4/5: Verify */}
             <li className="flex gap-3">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-700 dark:bg-green-900/50 dark:text-green-300">
-                4
+                {isFirefox ? "5" : "4"}
               </span>
               <p>
                 The Focus Shield icon should appear in your toolbar. Click it to
@@ -417,8 +431,8 @@ function BrowserInstallCard({
 function ExtensionPathCopyBox({ isFirefox }: { isFirefox: boolean }) {
   const { copied, copy } = useCopyToClipboard();
   const displayPath = isFirefox
-    ? `${EXTENSION_PATH}/manifest.json`
-    : EXTENSION_PATH;
+    ? `${EXTENSION_PATH_FIREFOX}/manifest.json`
+    : EXTENSION_PATH_CHROME;
 
   return (
     <div className="mt-1.5 flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 dark:border-gray-600 dark:bg-gray-700">
@@ -429,6 +443,30 @@ function ExtensionPathCopyBox({ isFirefox }: { isFirefox: boolean }) {
         className="shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600 dark:hover:text-gray-200"
         onClick={() => void copy(displayPath)}
         title="Copy path"
+      >
+        {copied ? <IconCheck /> : <IconCopy />}
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CommandCopyBox — shows a terminal command with copy button
+// ---------------------------------------------------------------------------
+
+function CommandCopyBox({ command }: { command: string }) {
+  const { copied, copy } = useCopyToClipboard();
+
+  return (
+    <div className="mt-1.5 flex items-center gap-2 rounded-md border border-gray-300 bg-gray-900 px-3 py-2 dark:border-gray-600">
+      <span className="select-none text-xs text-gray-500">$</span>
+      <code className="flex-1 truncate font-mono text-xs text-green-400">
+        {command}
+      </code>
+      <button
+        className="shrink-0 rounded p-1 text-gray-500 transition-colors hover:bg-gray-700 hover:text-gray-200"
+        onClick={() => void copy(command)}
+        title="Copy command"
       >
         {copied ? <IconCheck /> : <IconCopy />}
       </button>
