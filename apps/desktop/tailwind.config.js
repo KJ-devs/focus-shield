@@ -4,6 +4,15 @@ export default {
   darkMode: "class",
   theme: {
     extend: {
+      keyframes: {
+        fadeSlideIn: {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        "fade-slide-in": "fadeSlideIn 0.4s ease-out",
+      },
       colors: {
         focus: {
           50: "#eff6ff",
