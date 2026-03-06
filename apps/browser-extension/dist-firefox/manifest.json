@@ -5,7 +5,6 @@
   "description": "Intelligent distraction blocker with configurable sessions and cryptographic locking",
   "permissions": [
     "declarativeNetRequest",
-    "declarativeNetRequestFeedback",
     "storage",
     "alarms",
     "notifications",
@@ -33,10 +32,16 @@
   "declarative_net_request": {
     "rule_resources": []
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["dist/src/blocked/index.html"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "browser_specific_settings": {
     "gecko": {
       "id": "focus-shield@example.com",
-      "strict_min_version": "109.0"
+      "strict_min_version": "128.0"
     }
   }
 }
