@@ -120,7 +120,10 @@ function ActiveSessionView() {
 
   return (
     <div className="flex flex-col items-center gap-8">
-      <Badge variant="success">Session Active</Badge>
+      <Badge variant="success">
+        <span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-green-500" />
+        Session Active
+      </Badge>
 
       <CircularTimer
         timeRemainingMs={timeRemainingMs}
@@ -131,28 +134,28 @@ function ActiveSessionView() {
       <BlockProgression />
 
       {/* Stats row */}
-      <div className="flex gap-8">
-        <div className="flex flex-col items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+      <div className="flex gap-6">
+        <div className="flex flex-col items-center rounded-xl bg-white px-6 py-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+          <span className="mb-1 text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
             Distractions
           </span>
-          <span className="text-2xl font-bold text-gray-900 dark:text-white">
+          <span className="text-2xl font-bold text-red-500 dark:text-red-400">
             {distractionCount}
           </span>
         </div>
-        <div className="flex flex-col items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+        <div className="flex flex-col items-center rounded-xl bg-white px-6 py-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+          <span className="mb-1 text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
             Elapsed
           </span>
-          <span className="text-2xl font-bold text-gray-900 dark:text-white">
+          <span className="text-2xl font-bold text-focus-600 dark:text-focus-400">
             {elapsedMinutes}m
           </span>
         </div>
-        <div className="flex flex-col items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+        <div className="flex flex-col items-center rounded-xl bg-white px-6 py-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+          <span className="mb-1 text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
             Lock Level
           </span>
-          <span className="text-2xl font-bold text-gray-900 dark:text-white">
+          <span className="text-2xl font-bold text-amber-500 dark:text-amber-400">
             {config?.lockLevel ?? "-"}
           </span>
         </div>

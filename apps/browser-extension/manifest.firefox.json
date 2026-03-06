@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Focus Shield",
+  "version": "0.1.0",
+  "description": "Intelligent distraction blocker with configurable sessions and cryptographic locking",
+  "permissions": [
+    "declarativeNetRequest",
+    "declarativeNetRequestFeedback",
+    "storage",
+    "alarms",
+    "notifications",
+    "tabs",
+    "nativeMessaging"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "scripts": ["dist/background.js"],
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "dist/src/popup/index.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "declarative_net_request": {
+    "rule_resources": []
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "focus-shield@example.com",
+      "strict_min_version": "109.0"
+    }
+  }
+}

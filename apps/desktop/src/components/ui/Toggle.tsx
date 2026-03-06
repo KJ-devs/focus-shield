@@ -43,14 +43,14 @@ export function Toggle({
             onChange(!checked);
           }
         }}
-        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-focus-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-focus-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 ${
           checked
             ? "bg-focus-600"
             : "bg-gray-300 dark:bg-gray-600"
         } ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
       >
         <span
-          className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+          className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-300 ease-in-out ${
             checked ? "translate-x-6" : "translate-x-1"
           }`}
         />

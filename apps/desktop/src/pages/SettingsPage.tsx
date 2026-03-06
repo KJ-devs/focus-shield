@@ -6,6 +6,7 @@ import { MasterKeySetup } from "@/components/settings/MasterKeySetup";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { MorningIntention } from "@/components/settings/MorningIntention";
 import { UpdateChecker } from "@/components/settings/UpdateChecker";
+import { ExtensionInstall } from "@/components/settings/ExtensionInstall";
 import { useThemeStore } from "@/stores/theme-store";
 import { useSettingsStore } from "@/stores/settings-store";
 
@@ -66,6 +67,12 @@ export function SettingsPage() {
             label="Dark Mode"
             description={`Currently using ${theme} mode`}
           />
+        </Card>
+
+        {/* ── Browser Extension ──────────────────────────────────────── */}
+        <Card>
+          <SectionHeading title="Browser Extension" />
+          <ExtensionInstall />
         </Card>
 
         {/* ── Lock Level ──────────────────────────────────────────────── */}

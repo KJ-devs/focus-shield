@@ -30,6 +30,11 @@ export function CircularTimer({
   const dashOffset = circumference * (1 - progress);
   const center = size / 2;
 
+  const progressAngle = progress * 360 - 90;
+  const progressRad = (progressAngle * Math.PI) / 180;
+  const dotX = center + radius * Math.cos(progressRad);
+  const dotY = center + radius * Math.sin(progressRad);
+
   return (
     <div className="flex flex-col items-center gap-4">
       <svg
@@ -37,6 +42,15 @@ export function CircularTimer({
         height={size}
         className="drop-shadow-lg"
       >
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
         {/* Track circle */}
         <circle
           cx={center}
@@ -45,7 +59,7 @@ export function CircularTimer({
           fill="none"
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-gray-300 dark:text-gray-700"
+          className="text-gray-200 dark:text-gray-700/50"
         />
         {/* Progress circle */}
         <circle
@@ -60,14 +74,25 @@ export function CircularTimer({
           strokeDashoffset={dashOffset}
           className="text-focus-500 transition-[stroke-dashoffset] duration-1000 ease-linear"
           transform={`rotate(-90 ${center} ${center})`}
+          filter="url(#glow)"
         />
+        {/* Progress dot indicator */}
+        {progress > 0.01 && (
+          <circle
+            cx={dotX}
+            cy={dotY}
+            r={6}
+            className="fill-focus-500 animate-pulse"
+            filter="url(#glow)"
+          />
+        )}
         {/* Time text */}
         <text
           x={center}
           y={center - 8}
           textAnchor="middle"
           dominantBaseline="central"
-          className="fill-gray-900 dark:fill-white text-5xl font-mono font-bold"
+          className="fill-gray-900 dark:fill-white font-mono font-bold"
           style={{ fontSize: size > 240 ? "3rem" : "2rem" }}
         >
           {formatTime(timeRemainingMs)}
@@ -78,7 +103,7 @@ export function CircularTimer({
           y={center + 36}
           textAnchor="middle"
           dominantBaseline="central"
-          className="fill-gray-500 dark:fill-gray-400 text-sm font-medium"
+          className="fill-gray-500 dark:fill-gray-400 font-medium"
           style={{ fontSize: "0.875rem" }}
         >
           {sessionName}
