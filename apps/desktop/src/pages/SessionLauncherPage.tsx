@@ -69,6 +69,7 @@ function ConfigureStep() {
               <button
                 key={preset.id}
                 type="button"
+                data-testid={`preset-${preset.id}`}
                 onClick={() => setSelectedPreset(preset)}
                 className={`flex flex-col items-start gap-2 rounded-xl border-2 p-5 text-left transition-colors ${
                   isSelected
@@ -125,6 +126,7 @@ function ConfigureStep() {
               <button
                 key={level}
                 type="button"
+                data-testid={`lock-level-${level}`}
                 onClick={() => setLockLevel(level)}
                 className={`flex flex-col items-center gap-1 rounded-xl border-2 p-4 transition-colors ${
                   isSelected
@@ -155,6 +157,7 @@ function ConfigureStep() {
           disabled={!selectedPreset}
           onClick={handleLaunch}
           className="px-12"
+          data-testid="launch-session-btn"
         >
           Launch Session
         </Button>
@@ -227,8 +230,8 @@ function TokenDisplayStep() {
 
         {/* Token display */}
         {token && (
-          <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-8 py-6 dark:border-gray-600 dark:bg-gray-900">
-            <p className="font-mono text-2xl font-bold tracking-widest text-gray-900 dark:text-white">
+          <div data-testid="token-display" className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-8 py-6 dark:border-gray-600 dark:bg-gray-900">
+            <p data-testid="token-value" className="font-mono text-2xl font-bold tracking-widest text-gray-900 dark:text-white">
               {formatGroupedToken(token)}
             </p>
           </div>

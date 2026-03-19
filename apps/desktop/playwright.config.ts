@@ -16,5 +16,8 @@ export default defineConfig({
     port: 1420,
     reuseExistingServer: true,
     timeout: 120_000,
+    env: {
+      TAURI_MOCK: "true",
+    },
   },
 });

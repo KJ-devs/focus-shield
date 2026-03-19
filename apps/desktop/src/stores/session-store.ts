@@ -331,6 +331,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         review,
         lastError: null,
       });
+
+      // Persist session run on manual stop (same as session:completed handler)
+      if (state.sessionRunId) {
+        void persistSessionRun(state.sessionRunId, state, review);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       set({ lastError: message });

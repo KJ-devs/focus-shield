@@ -109,6 +109,9 @@ importers:
         specifier: ^5.0.0
         version: 5.0.11(@types/react@19.2.14)(react@19.2.4)
     devDependencies:
+      '@playwright/test':
+        specifier: ^1.58.2
+        version: 1.58.2
       '@tauri-apps/cli':
         specifier: ^2.2.0
         version: 2.10.0

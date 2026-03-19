@@ -101,6 +101,7 @@ function QuickStartSection() {
           return (
             <Card
               key={preset.name}
+              data-testid={`quick-start-${preset.name.toLowerCase().replace(/\s+/g, "-")}`}
               className={`group flex flex-col items-center gap-4 bg-gradient-to-br ${preset.gradient} cursor-pointer border-2 border-transparent transition-all duration-200 hover:border-focus-300 hover:shadow-lg dark:hover:border-focus-700`}
               onClick={() =>
                 startQuickSession(
@@ -146,19 +147,19 @@ function ActiveSessionSection() {
   const stopSession = useSessionStore((s) => s.stopSession);
 
   return (
-    <Card className="flex flex-col items-center gap-4">
+    <Card data-testid="active-session-widget" className="flex flex-col items-center gap-4">
       <Badge variant="success">Session Active</Badge>
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+      <h2 data-testid="session-name" className="text-xl font-semibold text-gray-900 dark:text-white">
         {currentSessionName}
       </h2>
-      <div className="text-6xl font-mono font-bold text-focus-600 dark:text-focus-400">
+      <div data-testid="session-timer" className="text-6xl font-mono font-bold text-focus-600 dark:text-focus-400">
         {formatMsToTimer(timeRemainingMs)}
       </div>
-      <p className="text-sm text-gray-500 dark:text-gray-400">
+      <p data-testid="distraction-count" className="text-sm text-gray-500 dark:text-gray-400">
         {distractionCount} distraction{distractionCount !== 1 ? "s" : ""}{" "}
         blocked
       </p>
-      <Button variant="danger" onClick={() => void stopSession()}>
+      <Button data-testid="stop-session-btn" variant="danger" onClick={() => void stopSession()}>
         Stop Session
       </Button>
     </Card>
@@ -179,24 +180,28 @@ function TodayStatsSection() {
           value={formatMinutesToDisplay(todayStats.focusMinutes)}
           icon={"\u23F1\uFE0F"}
           trend="up"
+          data-testid="stat-focus-time"
         />
         <StatCard
           label="Sessions"
           value={todayStats.sessionsCompleted}
           icon={"\u2705"}
           trend="neutral"
+          data-testid="stat-sessions"
         />
         <StatCard
           label="Distractions Blocked"
           value={todayStats.distractionsBlocked}
           icon={"\uD83D\uDEE1\uFE0F"}
           trend="down"
+          data-testid="stat-distractions"
         />
         <StatCard
           label="Streak"
           value={`${todayStats.currentStreak} days`}
           icon={"\uD83D\uDD25"}
           trend="up"
+          data-testid="stat-streak"
         />
       </div>
     </div>
@@ -238,10 +243,11 @@ function RecentActivitySection() {
       <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
         Recent Activity
       </h2>
-      <Card className="divide-y divide-gray-100 dark:divide-gray-700 p-0">
+      <Card data-testid="recent-activity-list" className="divide-y divide-gray-100 dark:divide-gray-700 p-0">
         {recentSessions.map((session) => (
           <div
             key={session.id}
+            data-testid="recent-session-item"
             className="flex items-center justify-between px-6 py-4"
           >
             <div className="flex items-center gap-3">

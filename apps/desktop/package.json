@@ -20,16 +20,17 @@
     "@focus-shield/shared-types": "workspace:*",
     "@focus-shield/ui-components": "workspace:*",
     "@tauri-apps/api": "^2.2.0",
+    "@tauri-apps/plugin-notification": "^2.2.0",
     "@tauri-apps/plugin-shell": "^2.2.0",
     "@tauri-apps/plugin-sql": "^2.2.0",
-    "@tauri-apps/plugin-notification": "^2.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.0.0",
-    "zustand": "^5.0.0",
-    "recharts": "^2.15.0"
+    "recharts": "^2.15.0",
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tauri-apps/cli": "^2.2.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

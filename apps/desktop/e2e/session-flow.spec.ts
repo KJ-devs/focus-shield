@@ -9,7 +9,7 @@ test.describe("Session Launcher Page", () => {
     await expect(
       page.locator("h1", { hasText: "Launch Session" }),
     ).toBeVisible();
-    await expect(page.locator("text=Choose a Preset")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Choose a Preset" })).toBeVisible();
   });
 
   test("should display all session presets", async ({ page }) => {
@@ -28,13 +28,13 @@ test.describe("Session Launcher Page", () => {
   test("should display lock level selector", async ({ page }) => {
     await page.goto("/launch");
 
-    await expect(page.locator("text=Lock Level")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Lock Level" })).toBeVisible();
     // Lock level names
-    await expect(page.locator("text=Gentle")).toBeVisible();
-    await expect(page.locator("text=Moderate")).toBeVisible();
-    await expect(page.locator("text=Strict")).toBeVisible();
-    await expect(page.locator("text=Hardcore")).toBeVisible();
-    await expect(page.locator("text=Nuclear")).toBeVisible();
+    await expect(page.locator("[data-testid='lock-level-1']")).toBeVisible();
+    await expect(page.locator("[data-testid='lock-level-2']")).toBeVisible();
+    await expect(page.locator("[data-testid='lock-level-3']")).toBeVisible();
+    await expect(page.locator("[data-testid='lock-level-4']")).toBeVisible();
+    await expect(page.locator("[data-testid='lock-level-5']")).toBeVisible();
   });
 
   test("should have a disabled launch button when no preset is selected", async ({
@@ -42,9 +42,7 @@ test.describe("Session Launcher Page", () => {
   }) => {
     await page.goto("/launch");
 
-    const launchButton = page.locator("button", {
-      hasText: "Launch Session",
-    });
+    const launchButton = page.locator("[data-testid='launch-session-btn']");
     await expect(launchButton).toBeVisible();
     await expect(launchButton).toBeDisabled();
   });
@@ -55,23 +53,21 @@ test.describe("Session Launcher Page", () => {
     await page.goto("/launch");
 
     // Click on the Pomodoro Classic preset
-    await page.locator("text=Pomodoro Classic").click();
+    await page.locator("[data-testid='preset-pomodoro']").click();
 
-    const launchButton = page.locator("button", {
-      hasText: "Launch Session",
-    });
+    const launchButton = page.locator("[data-testid='launch-session-btn']");
     await expect(launchButton).toBeEnabled();
   });
 });
 
 test.describe("Sessions Page", () => {
-  test("should render the sessions page with launch button", async ({
+  test("should render the sessions page with title", async ({
     page,
   }) => {
     await page.goto("/sessions");
 
     await expect(
-      page.locator("h1", { hasText: "Launch Session" }),
+      page.locator("h1", { hasText: "Sessions" }),
     ).toBeVisible();
   });
 });

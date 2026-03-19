@@ -36,7 +36,7 @@ export function CircularTimer({
   const dotY = center + radius * Math.sin(progressRad);
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div data-testid="circular-timer" className="flex flex-col items-center gap-4">
       <svg
         width={size}
         height={size}

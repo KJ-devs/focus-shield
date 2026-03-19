@@ -119,7 +119,7 @@ function ActiveSessionView() {
   const elapsedMinutes = Math.floor(elapsedMs / 60_000);
 
   return (
-    <div className="flex flex-col items-center gap-8">
+    <div data-testid="active-session-view" className="flex flex-col items-center gap-8">
       <Badge variant="success">
         <span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-green-500" />
         Session Active
@@ -163,7 +163,7 @@ function ActiveSessionView() {
 
       {/* Controls */}
       {config?.lockLevel !== 5 && (
-        <Button variant="danger" onClick={requestUnlock}>
+        <Button data-testid="request-unlock-btn" variant="danger" onClick={requestUnlock}>
           Request Unlock
         </Button>
       )}
@@ -184,16 +184,17 @@ function UnlockPromptView() {
 
   const handleSubmit = async (value: string): Promise<boolean> => {
     try {
-      // Token verification happens in Rust (sha256 for now, Argon2 in Phase 2)
       await stopSession(value);
-      return true;
+      // Check if the phase actually changed to review — if not, token was invalid
+      const { phase: currentPhase } = useSessionStore.getState();
+      return currentPhase === "review";
     } catch {
       return false;
     }
   };
 
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div data-testid="unlock-prompt-view" className="flex flex-col items-center gap-6">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
         Unlock Session
       </h2>

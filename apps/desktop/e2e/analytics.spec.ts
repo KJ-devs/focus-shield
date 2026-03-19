@@ -10,9 +10,9 @@ test.describe("Analytics Page", () => {
   test("should display period selector buttons", async ({ page }) => {
     await page.goto("/analytics");
 
-    await expect(page.locator("text=30 days")).toBeVisible();
-    await expect(page.locator("text=90 days")).toBeVisible();
-    await expect(page.locator("text=1 year")).toBeVisible();
+    await expect(page.getByRole("button", { name: "30 days" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "90 days" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "1 year" })).toBeVisible();
   });
 
   test("should display focus activity heatmap section", async ({ page }) => {

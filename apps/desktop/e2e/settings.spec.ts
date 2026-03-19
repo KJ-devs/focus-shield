@@ -15,7 +15,7 @@ test.describe("Settings Page", () => {
     await expect(
       page.locator("h2", { hasText: "Appearance" }),
     ).toBeVisible();
-    await expect(page.locator("text=Dark Mode")).toBeVisible();
+    await expect(page.getByText("Dark Mode", { exact: true })).toBeVisible();
   });
 
   test("should display lock level section", async ({ page }) => {
@@ -61,6 +61,6 @@ test.describe("Settings Page", () => {
     await page.goto("/settings");
 
     await expect(page.locator("h2", { hasText: "About" })).toBeVisible();
-    await expect(page.locator("text=v0.1.0")).toBeVisible();
+    await expect(page.getByText("v0.1.0").first()).toBeVisible();
   });
 });

@@ -216,7 +216,7 @@ export function SessionReview({ review, onDismiss }: SessionReviewProps) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-lg">
+    <div data-testid="session-review" className="mx-auto w-full max-w-lg">
       <Card className="flex flex-col items-center gap-6 py-8">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
           Session Complete
@@ -234,6 +234,7 @@ export function SessionReview({ review, onDismiss }: SessionReviewProps) {
             Focus Score
           </span>
           <span
+            data-testid="focus-score"
             className={`text-5xl font-bold ${getScoreColor(review.focusScore)}`}
           >
             {review.focusScore}
@@ -321,10 +322,10 @@ export function SessionReview({ review, onDismiss }: SessionReviewProps) {
 
         {/* Action buttons */}
         <div className="flex gap-3">
-          <Button variant="primary" size="lg" onClick={handleStartAnother}>
+          <Button data-testid="start-another-btn" variant="primary" size="lg" onClick={handleStartAnother}>
             Start Another Session
           </Button>
-          <Button variant="secondary" size="lg" onClick={handleGoToDashboard}>
+          <Button data-testid="go-to-dashboard-btn" variant="secondary" size="lg" onClick={handleGoToDashboard}>
             Go to Dashboard
           </Button>
         </div>

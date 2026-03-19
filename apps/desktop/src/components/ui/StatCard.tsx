@@ -7,6 +7,7 @@ interface StatCardProps {
   value: string | number;
   icon?: string;
   trend?: Trend;
+  "data-testid"?: string;
 }
 
 const trendColors: Record<Trend, string> = {
@@ -37,9 +38,9 @@ function TrendArrow({ trend }: { trend: Trend }) {
   );
 }
 
-export function StatCard({ label, value, icon, trend }: StatCardProps) {
+export function StatCard({ label, value, icon, trend, "data-testid": testId }: StatCardProps) {
   return (
-    <Card className="flex flex-col gap-3">
+    <Card data-testid={testId} className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
           {label}

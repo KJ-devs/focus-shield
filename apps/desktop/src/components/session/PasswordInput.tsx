@@ -144,6 +144,7 @@ export function PasswordInput({ onSubmit, onCancel, lockLevel }: PasswordInputPr
             <div className="relative">
               <input
                 id="token-input"
+                data-testid="token-input"
                 type={showPassword ? "text" : "password"}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
@@ -193,7 +194,7 @@ export function PasswordInput({ onSubmit, onCancel, lockLevel }: PasswordInputPr
 
           {/* Error display */}
           {error && (
-            <p className="text-center text-sm font-medium text-red-600 dark:text-red-400">
+            <p data-testid="token-error" className="text-center text-sm font-medium text-red-600 dark:text-red-400">
               {error}
             </p>
           )}
@@ -223,6 +224,7 @@ export function PasswordInput({ onSubmit, onCancel, lockLevel }: PasswordInputPr
               variant="danger"
               className="flex-1"
               disabled={isInputDisabled || value.length === 0}
+              data-testid="unlock-submit-btn"
             >
               Unlock
             </Button>
