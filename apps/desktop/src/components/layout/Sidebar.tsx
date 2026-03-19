@@ -1,7 +1,8 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useThemeStore } from "@/stores/theme-store";
 import { ProfileSwitcher } from "@/components/profiles/ProfileSwitcher";
+import { daemonHealthCheck } from "@/tauri/daemon";
 
 interface NavItem {
   to: string;
@@ -171,6 +172,49 @@ function NavItemLink({ item }: { item: NavItem }) {
   );
 }
 
+type DaemonStatus = "connected" | "extension-only" | "disconnected" | "checking";
+
+function useDaemonStatus(): DaemonStatus {
+  const [status, setStatus] = useState<DaemonStatus>("checking");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function check(): Promise<void> {
+      try {
+        const alive = await daemonHealthCheck();
+        if (mounted) setStatus(alive ? "connected" : "extension-only");
+      } catch {
+        if (mounted) setStatus("disconnected");
+      }
+    }
+
+    void check();
+    const interval = setInterval(() => void check(), 15_000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, []);
+
+  return status;
+}
+
+function DaemonStatusBadge() {
+  const status = useDaemonStatus();
+
+  const config = {
+    checking: { color: "bg-gray-400", label: "Checking...", ring: "" },
+    connected: { color: "bg-emerald-500", label: "Full protection", ring: "ring-2 ring-emerald-500/20" },
+    "extension-only": { color: "bg-amber-500", label: "Browser only", ring: "ring-2 ring-amber-500/20" },
+    disconnected: { color: "bg-red-500", label: "No protection", ring: "ring-2 ring-red-500/20" },
+  }[status];
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5">
+      <span className={`h-2 w-2 shrink-0 rounded-full ${config.color} ${config.ring}`} />
+      <span className="text-xs text-gray-500 dark:text-gray-400">{config.label}</span>
+    </div>
+  );
+}
+
 export function Sidebar() {
   const { theme, toggleTheme } = useThemeStore();
 
@@ -194,6 +238,7 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-gray-200 px-3 py-4 dark:border-gray-800">
+        <DaemonStatusBadge />
         <button
           onClick={toggleTheme}
           className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"

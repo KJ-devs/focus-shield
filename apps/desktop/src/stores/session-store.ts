@@ -3,6 +3,7 @@ import type { LockLevel, SessionBlock } from "@focus-shield/shared-types";
 import { daemonStartBlocking, daemonStopBlocking } from "@/tauri/daemon";
 import { useBlocklistStore } from "@/stores/blocklist-store";
 import type { DaemonDomainRule, DaemonProcessRule } from "@focus-shield/shared-types";
+import { toastWarning, toastInfo, toastError } from "@/stores/notification-store";
 import {
   sessionStart,
   sessionStop,
@@ -163,7 +164,7 @@ async function activateBlocking(sessionRunId: string): Promise<void> {
     if (domains.length === 0 && processes.length === 0) return;
     await daemonStartBlocking(sessionRunId, domains, processes);
   } catch {
-    // TODO Phase 4: show toast warning to user
+    toastWarning("System blocking unavailable. Browser extension blocking is still active.");
   }
 }
 
@@ -171,7 +172,7 @@ async function deactivateBlocking(sessionRunId: string): Promise<void> {
   try {
     await daemonStopBlocking(sessionRunId);
   } catch {
-    // TODO Phase 4: show toast info to user
+    toastInfo("Daemon did not respond. Blocking will be cleaned up on next startup.");
   }
 }
 
@@ -273,6 +274,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       set({ lastError: message });
+      toastError(message);
     }
   },
 
@@ -283,6 +285,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       set({ lastError: message });
+      toastError(message);
     }
   },
 
@@ -293,6 +296,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       set({ lastError: message });
+      toastError(message);
     }
   },
 
@@ -330,6 +334,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       set({ lastError: message });
+      toastError(message);
     }
   },
 
@@ -352,7 +357,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         lastError: null,
       });
     } catch {
-      // Reset locally anyway
+      toastInfo("Session dismissed locally.");
       set({ phase: "idle", review: null });
     }
   },
@@ -398,6 +403,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       set({ lastError: message });
+      toastError(message);
     }
   },
 
@@ -564,7 +570,7 @@ async function persistSessionRun(
     // Refresh today stats after persisting
     await loadTodayStats();
   } catch {
-    // TODO Phase 4: show toast error
+    toastError("Failed to save session data. Your session was completed but stats may be incomplete.");
   }
 }
 

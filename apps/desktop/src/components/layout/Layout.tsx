@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useTimer } from "@/hooks/useTimer";
+import { ToastContainer } from "@/components/ui/ToastContainer";
 
 export function Layout() {
   useTimer();
@@ -28,6 +29,7 @@ export function Layout() {
           <Outlet />
         </div>
       </main>
+      <ToastContainer />
     </div>
   );
 }

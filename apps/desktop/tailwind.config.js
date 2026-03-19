@@ -9,9 +9,14 @@ export default {
           "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        slideInRight: {
+          "0%": { opacity: "0", transform: "translateX(100%)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
       },
       animation: {
         "fade-slide-in": "fadeSlideIn 0.4s ease-out",
+        "slide-in-right": "slideInRight 0.3s ease-out",
       },
       colors: {
         focus: {
