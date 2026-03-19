@@ -30,9 +30,6 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "declarative_net_request": {
-    "rule_resources": []
-  },
   "web_accessible_resources": [
     {
       "resources": ["dist/src/blocked/index.html"],

@@ -8,8 +8,7 @@
     "storage",
     "alarms",
     "notifications",
-    "tabs",
-    "nativeMessaging"
+    "tabs"
   ],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -28,9 +27,6 @@
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
-  },
-  "declarative_net_request": {
-    "rule_resources": []
   },
   "web_accessible_resources": [
     {
