@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { ProcessRule } from "@focus-shield/shared-types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -10,7 +11,7 @@ export interface BlocklistData {
   icon: string;
   category: string;
   domains: string[];
-  processes: string[];
+  processes: ProcessRule[];
   isBuiltIn: boolean;
   enabled: boolean;
 }
@@ -24,8 +25,8 @@ export interface BlocklistState {
   toggleBlocklist: (id: string) => void;
   addDomain: (blocklistId: string, domain: string) => void;
   removeDomain: (blocklistId: string, domain: string) => void;
-  addProcess: (blocklistId: string, process: string) => void;
-  removeProcess: (blocklistId: string, process: string) => void;
+  addProcess: (blocklistId: string, processName: string) => void;
+  removeProcess: (blocklistId: string, processName: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -47,7 +48,12 @@ const BUILTIN_BLOCKLISTS: BlocklistData[] = [
       "*.snapchat.com",
       "*.linkedin.com/feed/*",
     ],
-    processes: ["discord", "slack", "telegram", "whatsapp"],
+    processes: [
+      { name: "discord", aliases: ["Discord.exe", "discord-ptb", "discord-canary"], action: "kill" },
+      { name: "slack", aliases: ["Slack.exe", "slack-desktop"], action: "kill" },
+      { name: "telegram", aliases: ["Telegram.exe", "telegram-desktop"], action: "kill" },
+      { name: "whatsapp", aliases: ["WhatsApp.exe", "whatsapp-desktop"], action: "kill" },
+    ],
     isBuiltIn: true,
     enabled: true,
   },
@@ -64,7 +70,10 @@ const BUILTIN_BLOCKLISTS: BlocklistData[] = [
       "*.reddit.com",
       "*.9gag.com",
     ],
-    processes: ["spotify", "vlc"],
+    processes: [
+      { name: "spotify", aliases: ["Spotify.exe", "spotify-client"], action: "suspend" },
+      { name: "vlc", aliases: ["VLC.exe", "vlc-media-player"], action: "suspend" },
+    ],
     isBuiltIn: true,
     enabled: true,
   },
@@ -78,7 +87,11 @@ const BUILTIN_BLOCKLISTS: BlocklistData[] = [
       "*.epicgames.com",
       "*.riotgames.com",
     ],
-    processes: ["steam", "epicgameslauncher", "battle.net"],
+    processes: [
+      { name: "steam", aliases: ["Steam.exe", "steam_osx", "steamwebhelper"], action: "kill" },
+      { name: "epicgameslauncher", aliases: ["EpicGamesLauncher.exe", "EpicWebHelper.exe", "epic-games-launcher"], action: "kill" },
+      { name: "battle.net", aliases: ["Battle.net.exe", "battle-net"], action: "kill" },
+    ],
     isBuiltIn: true,
     enabled: false,
   },
@@ -157,9 +170,17 @@ function loadPersistedBlocklists(): BlocklistData[] {
           domains: (item.domains as unknown[]).filter(
             (d): d is string => typeof d === "string",
           ),
-          processes: (item.processes as unknown[]).filter(
-            (p): p is string => typeof p === "string",
-          ),
+          processes: (item.processes as unknown[]).map((p) => {
+            if (typeof p === "string") {
+              return { name: p, aliases: [], action: "kill" as const };
+            }
+            const rule = p as Record<string, unknown>;
+            return {
+              name: typeof rule.name === "string" ? rule.name : String(rule.name),
+              aliases: Array.isArray(rule.aliases) ? (rule.aliases as string[]) : [],
+              action: rule.action === "suspend" ? ("suspend" as const) : ("kill" as const),
+            };
+          }),
         });
       }
     }
@@ -249,23 +270,24 @@ export const useBlocklistStore = create<BlocklistState>((set, get) => ({
     persistBlocklists(updated);
   },
 
-  addProcess: (blocklistId, process) => {
-    const trimmed = process.trim();
+  addProcess: (blocklistId, processName) => {
+    const trimmed = processName.trim();
     if (!trimmed) return;
 
     const updated = get().blocklists.map((b) => {
       if (b.id !== blocklistId) return b;
-      if (b.processes.includes(trimmed)) return b;
-      return { ...b, processes: [...b.processes, trimmed] };
+      if (b.processes.some((p) => p.name === trimmed)) return b;
+      const newRule: ProcessRule = { name: trimmed, aliases: [], action: "kill" };
+      return { ...b, processes: [...b.processes, newRule] };
     });
     set({ blocklists: updated });
     persistBlocklists(updated);
   },
 
-  removeProcess: (blocklistId, process) => {
+  removeProcess: (blocklistId, processName) => {
     const updated = get().blocklists.map((b) => {
       if (b.id !== blocklistId) return b;
-      return { ...b, processes: b.processes.filter((p) => p !== process) };
+      return { ...b, processes: b.processes.filter((p) => p.name !== processName) };
     });
     set({ blocklists: updated });
     persistBlocklists(updated);

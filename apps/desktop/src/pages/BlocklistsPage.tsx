@@ -239,9 +239,9 @@ function CustomBlocklistCard({
             <div className="mb-2 flex flex-wrap gap-1.5">
               {blocklist.processes.map((proc) => (
                 <RemovableTag
-                  key={proc}
-                  label={proc}
-                  onRemove={() => removeProcess(blocklist.id, proc)}
+                  key={proc.name}
+                  label={proc.name}
+                  onRemove={() => removeProcess(blocklist.id, proc.name)}
                 />
               ))}
               {blocklist.processes.length === 0 && (

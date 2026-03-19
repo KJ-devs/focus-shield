@@ -152,23 +152,31 @@ function getEnabledBlockingRules(): {
   );
 
   const processes: DaemonProcessRule[] = enabled.flatMap((b) =>
-    b.processes.map((name) => ({ name, aliases: [], action: "kill" as const })),
+    b.processes.map((p) => ({ name: p.name, aliases: p.aliases, action: p.action })),
   );
 
   return { domains, processes };
 }
 
+/** Track which session run has already activated blocking to prevent double calls. */
+let activeBlockingRunId: string | null = null;
+
 async function activateBlocking(sessionRunId: string): Promise<void> {
+  // Prevent double activation for the same session run
+  if (activeBlockingRunId === sessionRunId) return;
+
   try {
     const { domains, processes } = getEnabledBlockingRules();
     if (domains.length === 0 && processes.length === 0) return;
     await daemonStartBlocking(sessionRunId, domains, processes);
+    activeBlockingRunId = sessionRunId;
   } catch {
     toastWarning("System blocking unavailable. Browser extension blocking is still active.");
   }
 }
 
 async function deactivateBlocking(sessionRunId: string): Promise<void> {
+  activeBlockingRunId = null;
   try {
     await daemonStopBlocking(sessionRunId);
   } catch {
@@ -270,6 +278,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         if (result.snapshot.runId) {
           void activateBlocking(result.snapshot.runId);
         }
+
+        // Sync state from Rust to guard against missed early ticks
+        void syncSessionStatus();
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -405,6 +416,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       if (result.snapshot.runId) {
         void activateBlocking(result.snapshot.runId);
       }
+
+      // Sync state from Rust to guard against missed early ticks
+      void syncSessionStatus();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       set({ lastError: message });
@@ -447,6 +461,48 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 // ---------------------------------------------------------------------------
 // Tauri event listeners — sync Rust state → Zustand
 // ---------------------------------------------------------------------------
+
+/**
+ * Fetch current session status from Rust and update the store.
+ * Used after sessionStart() to guard against missed early ticks (race condition),
+ * and as a fallback re-sync 2 seconds after session start.
+ */
+async function syncSessionStatus(): Promise<void> {
+  try {
+    const snapshot = await sessionStatus();
+    if (snapshot.phase !== "idle") {
+      const phase = mapRustPhase(snapshot.phase);
+      useSessionStore.setState({
+        phase,
+        sessionRunId: snapshot.runId,
+        timeRemainingMs: snapshot.timeRemainingMs,
+        currentBlockIndex: snapshot.currentBlockIndex,
+        distractionCount: snapshot.distractionCount,
+        startedAt: snapshot.startedAt,
+        isSessionActive: phase === "active" || phase === "unlock-prompt",
+        currentSessionName: snapshot.presetName,
+      });
+    }
+  } catch {
+    // Not running in Tauri — ignore
+  }
+
+  // Fallback: re-sync after 2 seconds in case early ticks were lost
+  setTimeout(() => {
+    const state = useSessionStore.getState();
+    if (state.isSessionActive) {
+      void sessionStatus().then((snapshot) => {
+        if (snapshot.phase !== "idle") {
+          useSessionStore.setState({
+            timeRemainingMs: snapshot.timeRemainingMs,
+            currentBlockIndex: snapshot.currentBlockIndex,
+            distractionCount: snapshot.distractionCount,
+          });
+        }
+      }).catch(() => { /* ignore */ });
+    }
+  }, 2000);
+}
 
 /** Initialize event listeners. Call once at app startup. */
 export function initSessionListeners(): void {
