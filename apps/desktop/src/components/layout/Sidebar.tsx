@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useThemeStore } from "@/stores/theme-store";
 import { ProfileSwitcher } from "@/components/profiles/ProfileSwitcher";
-import { daemonHealthCheck } from "@/tauri/daemon";
+import { daemonHealthCheck, daemonExtensionStatus } from "@/tauri/daemon";
 
 interface NavItem {
   to: string;
@@ -172,20 +172,43 @@ function NavItemLink({ item }: { item: NavItem }) {
   );
 }
 
-type DaemonStatus = "connected" | "extension-only" | "disconnected" | "checking";
+interface ProtectionStatus {
+  daemon: "connected" | "disconnected" | "checking";
+  extension: "connected" | "disconnected" | "checking";
+}
 
-function useDaemonStatus(): DaemonStatus {
-  const [status, setStatus] = useState<DaemonStatus>("checking");
+function useProtectionStatus(): ProtectionStatus {
+  const [status, setStatus] = useState<ProtectionStatus>({
+    daemon: "checking",
+    extension: "checking",
+  });
 
   useEffect(() => {
     let mounted = true;
 
     async function check(): Promise<void> {
+      let daemonAlive = false;
       try {
-        const alive = await daemonHealthCheck();
-        if (mounted) setStatus(alive ? "connected" : "extension-only");
+        daemonAlive = await daemonHealthCheck();
       } catch {
-        if (mounted) setStatus("disconnected");
+        // daemon not reachable
+      }
+
+      let extensionConnected = false;
+      if (daemonAlive) {
+        try {
+          const extStatus = await daemonExtensionStatus();
+          extensionConnected = extStatus.connected;
+        } catch {
+          // extension status unavailable
+        }
+      }
+
+      if (mounted) {
+        setStatus({
+          daemon: daemonAlive ? "connected" : "disconnected",
+          extension: daemonAlive && extensionConnected ? "connected" : "disconnected",
+        });
       }
     }
 
@@ -198,19 +221,30 @@ function useDaemonStatus(): DaemonStatus {
 }
 
 function DaemonStatusBadge() {
-  const status = useDaemonStatus();
+  const { daemon, extension } = useProtectionStatus();
 
-  const config = {
-    checking: { color: "bg-gray-400", label: "Checking...", ring: "" },
-    connected: { color: "bg-emerald-500", label: "Full protection", ring: "ring-2 ring-emerald-500/20" },
-    "extension-only": { color: "bg-amber-500", label: "Browser only", ring: "ring-2 ring-amber-500/20" },
-    disconnected: { color: "bg-red-500", label: "No protection", ring: "ring-2 ring-red-500/20" },
-  }[status];
+  const daemonConfig = {
+    checking: { color: "bg-gray-400", label: "Daemon: checking..." },
+    connected: { color: "bg-emerald-500", label: "Daemon: connected" },
+    disconnected: { color: "bg-red-500", label: "Daemon: offline" },
+  }[daemon];
+
+  const extensionConfig = {
+    checking: { color: "bg-gray-400", label: "Extension: checking..." },
+    connected: { color: "bg-emerald-500", label: "Extension: connected" },
+    disconnected: { color: "bg-amber-500", label: "Extension: not connected" },
+  }[extension];
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5">
-      <span className={`h-2 w-2 shrink-0 rounded-full ${config.color} ${config.ring}`} />
-      <span className="text-xs text-gray-500 dark:text-gray-400">{config.label}</span>
+    <div className="space-y-1 px-3 py-1.5">
+      <div className="flex items-center gap-2">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${daemonConfig.color}`} />
+        <span className="text-xs text-gray-500 dark:text-gray-400">{daemonConfig.label}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${extensionConfig.color}`} />
+        <span className="text-xs text-gray-500 dark:text-gray-400">{extensionConfig.label}</span>
+      </div>
     </div>
   );
 }

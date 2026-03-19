@@ -18,7 +18,7 @@ const ALARM_NAME = "focusShield_desktopReconnect";
 let socket: WebSocket | null = null;
 let isConnecting = false;
 
-type MessageHandler = (message: DesktopMessage) => void;
+type MessageHandler = (message: DesktopMessage) => void | Promise<void>;
 const messageHandlers: MessageHandler[] = [];
 
 /**
@@ -82,7 +82,17 @@ export async function connectToDesktop(): Promise<void> {
       try {
         const message = JSON.parse(event.data as string) as DesktopMessage;
         for (const handler of messageHandlers) {
-          handler(message);
+          try {
+            const result = handler(message);
+            // Catch async handler errors
+            if (result && typeof result.catch === "function") {
+              result.catch((err: unknown) => {
+                console.error("[Focus Shield] Async message handler error:", err);
+              });
+            }
+          } catch (handlerErr) {
+            console.error("[Focus Shield] Message handler error:", handlerErr);
+          }
         }
       } catch {
         // Ignore malformed messages

@@ -150,6 +150,11 @@ async function activateBlocking(
   sessionId: string,
   endTime: string,
 ): Promise<void> {
+  if (domains.length === 0) {
+    console.warn("[Focus Shield] activateBlocking called with empty domains array");
+    return;
+  }
+
   // First, remove any existing dynamic rules
   const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
   const existingRuleIds = existingRules.map((r) => r.id);
@@ -159,10 +164,22 @@ async function activateBlocking(
     domainPatternToRule(domain, index + 1),
   );
 
+  console.warn(
+    `[Focus Shield] Activating blocking: ${newRules.length} rules for session ${sessionId}`,
+  );
+
   await chrome.declarativeNetRequest.updateDynamicRules({
     removeRuleIds: existingRuleIds,
     addRules: newRules,
   });
+
+  // Verify rules were applied
+  const appliedRules = await chrome.declarativeNetRequest.getDynamicRules();
+  if (appliedRules.length !== newRules.length) {
+    console.error(
+      `[Focus Shield] Rule mismatch: expected ${newRules.length}, got ${appliedRules.length}`,
+    );
+  }
 
   const state: BlockingState = {
     isActive: true,
