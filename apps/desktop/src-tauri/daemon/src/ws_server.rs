@@ -57,6 +57,10 @@ pub enum DesktopMessage {
         daemon_version: String,
         #[serde(rename = "activeSessionId")]
         active_session_id: Option<String>,
+        #[serde(rename = "blockedDomains")]
+        blocked_domains: Option<Vec<String>>,
+        #[serde(rename = "endTime")]
+        end_time: Option<String>,
     },
     #[serde(rename = "desktop:start_blocking")]
     StartBlocking {
@@ -280,23 +284,14 @@ async fn handle_extension_message(
                 daemon_state.extensions.write().await.push(ext_info);
             }
 
-            // Send welcome with current state
+            // Send welcome with current blocking state so extension can sync immediately
             let blocking = daemon_state.blocking.read().await;
             let active_session = blocking.active_session_id.clone();
-
-            // If a blocking session is already active, resend start_blocking so the
-            // newly-connected extension immediately applies the correct rules.
-            if let Some(ref session_id) = active_session {
-                let start_msg = serde_json::json!({
-                    "type": "desktop:start_blocking",
-                    "sessionId": session_id,
-                    "domains": blocking.blocked_domains.iter().map(|d| &d.pattern).collect::<Vec<_>>(),
-                    "endTime": serde_json::Value::Null,
-                });
-                if let Ok(json) = serde_json::to_string(&start_msg) {
-                    let _ = daemon_state.extension_broadcast.send(json);
-                }
-            }
+            let blocked_domains = if active_session.is_some() {
+                Some(blocking.blocked_domains.iter().map(|d| d.pattern.clone()).collect::<Vec<_>>())
+            } else {
+                None
+            };
             drop(blocking);
 
             // Warn if incognito not allowed
@@ -314,6 +309,8 @@ async fn handle_extension_message(
             Some(DesktopMessage::Welcome {
                 daemon_version: PROTOCOL_VERSION.to_string(),
                 active_session_id: active_session,
+                blocked_domains,
+                end_time: None,
             })
         }
 

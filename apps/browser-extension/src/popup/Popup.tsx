@@ -210,15 +210,15 @@ export function Popup() {
   const [loading, setLoading] = useState(true);
 
   const loadState = useCallback(() => {
-    chrome.runtime.sendMessage({ type: "GET_STATE" }, (response: unknown) => {
-      if (chrome.runtime.lastError) {
+    (chrome.runtime.sendMessage({ type: "GET_STATE" }) as unknown as Promise<unknown>)
+      .then((response: unknown) => {
+        const blockingState = response as BlockingState;
+        setState(blockingState);
         setLoading(false);
-        return;
-      }
-      const blockingState = response as BlockingState;
-      setState(blockingState);
-      setLoading(false);
-    });
+      })
+      .catch(() => {
+        setLoading(false);
+      });
   }, []);
 
   // Load initial state and set up timer
@@ -257,23 +257,20 @@ export function Popup() {
     ).toISOString();
     const sessionId = generateSessionId();
 
-    chrome.runtime.sendMessage(
-      {
-        type: "ACTIVATE_BLOCKING",
-        domains,
-        sessionId,
-        endTime,
-      },
-      () => {
-        loadState();
-      },
-    );
+    (chrome.runtime.sendMessage({
+      type: "ACTIVATE_BLOCKING",
+      domains,
+      sessionId,
+      endTime,
+    }) as unknown as Promise<unknown>)
+      .then(() => { loadState(); })
+      .catch(() => { loadState(); });
   }
 
   function handleStop(): void {
-    chrome.runtime.sendMessage({ type: "DEACTIVATE_BLOCKING" }, () => {
-      loadState();
-    });
+    (chrome.runtime.sendMessage({ type: "DEACTIVATE_BLOCKING" }) as unknown as Promise<unknown>)
+      .then(() => { loadState(); })
+      .catch(() => { loadState(); });
   }
 
   if (loading) {

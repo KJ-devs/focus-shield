@@ -44,16 +44,18 @@ test.describe("Popup — Inactive state", () => {
             _msg: unknown,
             callback?: (response: unknown) => void,
           ) => {
+            const response = {
+              isActive: false,
+              sessionId: null,
+              blockedDomains: [],
+              startedAt: null,
+              endTime: null,
+              distractionCount: 0,
+            };
             if (callback) {
-              callback({
-                isActive: false,
-                sessionId: null,
-                blockedDomains: [],
-                startedAt: null,
-                endTime: null,
-                distractionCount: 0,
-              });
+              callback(response);
             }
+            return Promise.resolve(response);
           },
           lastError: null,
         },
@@ -124,18 +126,20 @@ test.describe("Popup — Active state", () => {
             _msg: unknown,
             callback?: (response: unknown) => void,
           ) => {
+            const response = {
+              isActive: true,
+              sessionId: "test-session-1",
+              blockedDomains: ["*.reddit.com"],
+              startedAt: new Date().toISOString(),
+              endTime: new Date(
+                Date.now() + 25 * 60_000,
+              ).toISOString(),
+              distractionCount: 3,
+            };
             if (callback) {
-              callback({
-                isActive: true,
-                sessionId: "test-session-1",
-                blockedDomains: ["*.reddit.com"],
-                startedAt: new Date().toISOString(),
-                endTime: new Date(
-                  Date.now() + 25 * 60_000,
-                ).toISOString(),
-                distractionCount: 3,
-              });
+              callback(response);
             }
+            return Promise.resolve(response);
           },
           lastError: null,
         },

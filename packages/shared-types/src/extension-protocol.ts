@@ -69,6 +69,10 @@ export interface DesktopWelcomeMessage {
   type: "desktop:welcome";
   daemonVersion: string;
   activeSessionId: string | null;
+  /** Blocked domains if a session is active, so extension can sync immediately. */
+  blockedDomains: string[] | null;
+  /** Session end time if a session is active. */
+  endTime: string | null;
 }
 
 // Desktop tells extension to start blocking

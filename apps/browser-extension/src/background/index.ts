@@ -339,11 +339,24 @@ onDesktopMessage(async (message: DesktopMessage) => {
     }
 
     case "desktop:welcome": {
-      // Connection established. If desktop has an active session,
-      // request full status to sync.
-      if (message.activeSessionId) {
-        const { sendToDesktop } = await import("./desktop-client");
-        sendToDesktop({ type: "ext:status_request" });
+      // Connection established. If desktop has an active blocking session,
+      // activate blocking directly with the domains from the welcome message.
+      if (
+        message.activeSessionId &&
+        message.blockedDomains &&
+        message.blockedDomains.length > 0
+      ) {
+        const endTime =
+          message.endTime ??
+          new Date(Date.now() + 3600_000).toISOString();
+        await activateBlocking(
+          message.blockedDomains,
+          message.activeSessionId,
+          endTime,
+        );
+        const rules =
+          await chrome.declarativeNetRequest.getDynamicRules();
+        reportBlockingConfirmed(rules.length);
       }
       break;
     }

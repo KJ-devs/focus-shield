@@ -129,15 +129,20 @@ async function scheduleReconnect(): Promise<void> {
  * Check if the extension has incognito access.
  */
 async function checkIncognitoAccess(): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
+  try {
+    // chrome.extension.isAllowedIncognitoAccess works in Chrome MV3.
+    // Firefox MV3 doesn't support this API, so we catch and return false.
     if (chrome.extension?.isAllowedIncognitoAccess) {
-      chrome.extension.isAllowedIncognitoAccess((allowed) => {
-        resolve(allowed);
+      return await new Promise<boolean>((resolve) => {
+        chrome.extension.isAllowedIncognitoAccess((allowed) => {
+          resolve(allowed);
+        });
       });
-    } else {
-      resolve(false);
     }
-  });
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 /**
