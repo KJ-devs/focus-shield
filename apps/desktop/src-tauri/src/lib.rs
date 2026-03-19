@@ -1,8 +1,12 @@
 mod commands;
 mod daemon;
+mod db;
 mod error;
+mod session;
 
 use daemon::DaemonManager;
+use db::StorageManager;
+use session::SessionManager;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -18,6 +22,7 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .manage(daemon_manager)
+        .manage(SessionManager::new())
         .invoke_handler(tauri::generate_handler![
             commands::daemon_start,
             commands::daemon_stop,
@@ -27,8 +32,33 @@ pub fn run() {
             commands::daemon_health_check,
             commands::daemon_list_processes,
             commands::daemon_extension_status,
+            commands::session_start,
+            commands::session_stop,
+            commands::session_request_unlock,
+            commands::session_cancel_unlock,
+            commands::session_status,
+            commands::session_dismiss,
+            commands::session_record_distraction,
+            commands::storage_save_session_run,
+            commands::storage_get_today_stats,
+            commands::storage_get_recent_sessions,
+            commands::storage_get_stats_range,
+            commands::storage_get_streak,
         ])
         .setup(|app| {
+            // Initialize SQLite storage
+            let app_data_dir = app.path().app_data_dir()
+                .map_err(|e| format!("Failed to resolve app data dir: {}", e))?;
+            let db_path = app_data_dir.join("focus-shield.db");
+            log::info!("Database path: {:?}", db_path);
+
+            let storage = StorageManager::open(&db_path)
+                .map_err(|e| {
+                    log::error!("Failed to initialize storage: {}", e);
+                    e
+                })?;
+            app.manage(storage);
+
             // Spawn daemon on app startup in background
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {

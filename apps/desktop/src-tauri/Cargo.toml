@@ -24,4 +24,9 @@ tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "sync"
 uuid = { version = "1", features = ["v4"] }
 log = "0.4"
 env_logger = "0.11"
+getrandom = "0.2"
+argon2 = "0.5"
+rand = "0.8"
+rusqlite = { version = "0.31", features = ["bundled"] }
+chrono = { version = "0.4", features = ["serde"] }
 focus-shield-daemon = { path = "daemon" }

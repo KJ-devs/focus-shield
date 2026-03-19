@@ -1,10 +1,14 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useSessionStore } from "@/stores/session-store";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { Badge } from "@/components/ui/Badge";
 import { ExtensionBanner } from "@/components/settings/ExtensionInstall";
+import {
+  storageGetRecentSessions,
+  type RecentSession as RecentSessionData,
+} from "@/tauri/storage";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -75,18 +79,13 @@ const QUICK_PRESETS: QuickPreset[] = [
   { name: "Quick Focus", durationMinutes: 15, icon: IconBolt, gradient: "from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10" },
 ];
 
-interface RecentSession {
-  name: string;
-  duration: string;
-  status: "completed" | "aborted";
+function formatMinutesToDuration(minutes: number): string {
+  const m = Math.round(minutes);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  return rem > 0 ? `${h}h ${rem}m` : `${h}h`;
 }
-
-const RECENT_SESSIONS: RecentSession[] = [
-  { name: "Pomodoro", duration: "25 min", status: "completed" },
-  { name: "Deep Work", duration: "90 min", status: "completed" },
-  { name: "Quick Focus", duration: "15 min", status: "aborted" },
-  { name: "Pomodoro", duration: "25 min", status: "completed" },
-];
 
 function QuickStartSection() {
   const startQuickSession = useSessionStore((s) => s.startQuickSession);
@@ -159,7 +158,7 @@ function ActiveSessionSection() {
         {distractionCount} distraction{distractionCount !== 1 ? "s" : ""}{" "}
         blocked
       </p>
-      <Button variant="danger" onClick={stopSession}>
+      <Button variant="danger" onClick={() => void stopSession()}>
         Stop Session
       </Button>
     </Card>
@@ -205,23 +204,52 @@ function TodayStatsSection() {
 }
 
 function RecentActivitySection() {
+  const [recentSessions, setRecentSessions] = useState<RecentSessionData[]>([]);
+
+  useEffect(() => {
+    void storageGetRecentSessions(5).then(setRecentSessions).catch(() => {
+      // Not in Tauri or DB not ready
+    });
+  }, []);
+
+  // Also refresh when phase returns to idle (session just completed)
+  const phase = useSessionStore((s) => s.phase);
+  useEffect(() => {
+    if (phase === "idle") {
+      void storageGetRecentSessions(5).then(setRecentSessions).catch(() => {});
+    }
+  }, [phase]);
+
+  if (recentSessions.length === 0) {
+    return (
+      <div>
+        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+          Recent Activity
+        </h2>
+        <Card className="p-6 text-center text-gray-500 dark:text-gray-400">
+          No sessions yet. Start your first focus session!
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
         Recent Activity
       </h2>
       <Card className="divide-y divide-gray-100 dark:divide-gray-700 p-0">
-        {RECENT_SESSIONS.map((session, index) => (
+        {recentSessions.map((session) => (
           <div
-            key={`${session.name}-${index}`}
+            key={session.id}
             className="flex items-center justify-between px-6 py-4"
           >
             <div className="flex items-center gap-3">
               <span className="text-gray-900 dark:text-white font-medium">
-                {session.name}
+                {session.sessionId}
               </span>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {session.duration}
+                {formatMinutesToDuration(session.totalFocusMinutes)}
               </span>
             </div>
             <Badge

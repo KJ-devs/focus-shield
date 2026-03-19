@@ -175,36 +175,21 @@ function ActiveSessionView() {
 // Unlock prompt view
 // ---------------------------------------------------------------------------
 
-async function sha256(value: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(value);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 function UnlockPromptView() {
   const config = useSessionStore((s) => s.config);
-  const tokenHash = useSessionStore((s) => s.tokenHash);
   const cancelUnlock = useSessionStore((s) => s.cancelUnlock);
-  const forceStop = useSessionStore((s) => s.forceStop);
+  const stopSession = useSessionStore((s) => s.stopSession);
 
   const lockLevel = config?.lockLevel ?? 1;
 
   const handleSubmit = async (value: string): Promise<boolean> => {
-    // Level 1 with no hash stored: accept any non-empty input
-    if (!tokenHash) {
-      forceStop(true);
+    try {
+      // Token verification happens in Rust (sha256 for now, Argon2 in Phase 2)
+      await stopSession(value);
       return true;
-    }
-
-    const inputHash = await sha256(value);
-    if (inputHash !== tokenHash) {
+    } catch {
       return false;
     }
-
-    forceStop(true);
-    return true;
   };
 
   return (

@@ -1,13 +1,20 @@
 import { useEffect } from "react";
-import { useSessionStore } from "@/stores/session-store";
+import { initSessionListeners } from "@/stores/session-store";
 
+let initialized = false;
+
+/**
+ * Initialize Tauri session event listeners.
+ *
+ * The timer now runs in Rust. This hook sets up the event listeners
+ * that sync the Rust state into the Zustand store. Call once from
+ * the root component.
+ */
 export function useTimer(): void {
-  const phase = useSessionStore((s) => s.phase);
-  const tick = useSessionStore((s) => s.tick);
-
   useEffect(() => {
-    if (phase !== "active" && phase !== "unlock-prompt") return;
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [phase, tick]);
+    if (!initialized) {
+      initialized = true;
+      initSessionListeners();
+    }
+  }, []);
 }

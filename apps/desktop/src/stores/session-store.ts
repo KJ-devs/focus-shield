@@ -3,25 +3,35 @@ import type { LockLevel, SessionBlock } from "@focus-shield/shared-types";
 import { daemonStartBlocking, daemonStopBlocking } from "@/tauri/daemon";
 import { useBlocklistStore } from "@/stores/blocklist-store";
 import type { DaemonDomainRule, DaemonProcessRule } from "@focus-shield/shared-types";
+import {
+  sessionStart,
+  sessionStop,
+  sessionRequestUnlock,
+  sessionCancelUnlock,
+  sessionDismiss,
+  sessionStatus,
+  type SessionPhase as RustPhase,
+  type SessionReview,
+  type TickPayload,
+  type PhaseChangedPayload,
+  type SessionCompletedPayload,
+  type TokenDisplayPayload,
+} from "@/tauri/session";
+import {
+  storageSaveSessionRun,
+  storageGetTodayStats,
+  type TodayStats as StorageTodayStats,
+} from "@/tauri/storage";
+import { listen } from "@tauri-apps/api/event";
 
 // ---------------------------------------------------------------------------
-// Token config (mirrors @focus-shield/crypto TOKEN_CONFIG for browser use)
+// Token config (kept for UI display purposes only)
 // ---------------------------------------------------------------------------
-
-const CHARSET_ALPHANUMERIC =
-  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
-const CHARSET_MIXED =
-  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-
-const CHARSET_FULL_SYMBOLS =
-  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}|;:,.<>?";
 
 export interface TokenLevelConfig {
   readonly level: LockLevel;
   readonly name: string;
   readonly length: number;
-  readonly charset: string;
   readonly pasteAllowed: boolean;
   readonly cooldownBeforeEntry: boolean;
   readonly cooldownMs: number;
@@ -30,94 +40,37 @@ export interface TokenLevelConfig {
 
 export const TOKEN_CONFIG: Record<LockLevel, TokenLevelConfig> = {
   1: {
-    level: 1,
-    name: "Gentle",
-    length: 8,
-    charset: CHARSET_ALPHANUMERIC,
-    pasteAllowed: true,
-    cooldownBeforeEntry: false,
-    cooldownMs: 0,
+    level: 1, name: "Gentle", length: 8,
+    pasteAllowed: true, cooldownBeforeEntry: false, cooldownMs: 0,
     description: "8 alphanumeric characters, paste allowed",
   },
   2: {
-    level: 2,
-    name: "Moderate",
-    length: 16,
-    charset: CHARSET_MIXED,
-    pasteAllowed: false,
-    cooldownBeforeEntry: false,
-    cooldownMs: 0,
+    level: 2, name: "Moderate", length: 16,
+    pasteAllowed: false, cooldownBeforeEntry: false, cooldownMs: 0,
     description: "16 mixed characters, no paste",
   },
   3: {
-    level: 3,
-    name: "Strict",
-    length: 32,
-    charset: CHARSET_FULL_SYMBOLS,
-    pasteAllowed: false,
-    cooldownBeforeEntry: true,
-    cooldownMs: 60_000,
+    level: 3, name: "Strict", length: 32,
+    pasteAllowed: false, cooldownBeforeEntry: true, cooldownMs: 60_000,
     description: "32 mixed + symbols, 60s cooldown before entry",
   },
   4: {
-    level: 4,
-    name: "Hardcore",
-    length: 48,
-    charset: CHARSET_FULL_SYMBOLS,
-    pasteAllowed: false,
-    cooldownBeforeEntry: true,
-    cooldownMs: 120_000,
+    level: 4, name: "Hardcore", length: 48,
+    pasteAllowed: false, cooldownBeforeEntry: true, cooldownMs: 120_000,
     description: "48 mixed + symbols, 120s cooldown, double entry required",
   },
   5: {
-    level: 5,
-    name: "Nuclear",
-    length: 0,
-    charset: "",
-    pasteAllowed: false,
-    cooldownBeforeEntry: false,
-    cooldownMs: 0,
+    level: 5, name: "Nuclear", length: 0,
+    pasteAllowed: false, cooldownBeforeEntry: false, cooldownMs: 0,
     description: "No token — session is uninterruptible",
   },
 };
-
-/**
- * Browser-safe token generator using Web Crypto API.
- */
-function generateTokenBrowser(level: LockLevel): string {
-  const config = TOKEN_CONFIG[level];
-
-  if (config.length === 0 || config.charset.length === 0) {
-    return "";
-  }
-
-  const charsetLength = config.charset.length;
-  const maxAcceptable = Math.floor(256 / charsetLength) * charsetLength;
-  const chars: string[] = [];
-
-  while (chars.length < config.length) {
-    const randomArray = new Uint8Array(config.length * 2);
-    crypto.getRandomValues(randomArray);
-
-    for (let j = 0; j < randomArray.length && chars.length < config.length; j++) {
-      const byte = randomArray[j];
-      if (byte === undefined || byte >= maxAcceptable) {
-        continue;
-      }
-      const char = config.charset[byte % charsetLength];
-      if (char !== undefined) {
-        chars.push(char);
-      }
-    }
-  }
-
-  return chars.join("");
-}
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+/** Frontend phase — mapped from Rust's SessionPhase */
 export type SessionPhase =
   | "idle"
   | "configuring"
@@ -134,14 +87,7 @@ export interface SessionConfig {
   blocks: SessionBlock[];
 }
 
-export interface SessionReview {
-  sessionName: string;
-  totalDurationMs: number;
-  actualFocusMs: number;
-  distractionCount: number;
-  completedNormally: boolean;
-  focusScore: number;
-}
+export { type SessionReview } from "@/tauri/session";
 
 export interface TodayStats {
   focusMinutes: number;
@@ -154,7 +100,6 @@ export interface SessionState {
   phase: SessionPhase;
   config: SessionConfig | null;
   token: string | null;
-  tokenHash: string | null;
   sessionRunId: string | null;
   tokenCountdown: number;
   timeRemainingMs: number;
@@ -164,54 +109,35 @@ export interface SessionState {
   todayStats: TodayStats;
   review: SessionReview | null;
 
-  // Derived getter kept for HomePage backward compat
+  // Derived for backward compat
   isSessionActive: boolean;
   currentSessionName: string | null;
+
+  // Error state
+  lastError: string | null;
 
   // Actions
   startConfiguring: () => void;
   setConfig: (config: SessionConfig) => void;
+  launchSession: () => Promise<void>;
+  requestUnlock: () => Promise<void>;
+  cancelUnlock: () => Promise<void>;
+  stopSession: (token?: string) => Promise<void>;
+  dismissReview: () => Promise<void>;
+  startQuickSession: (name: string, durationMs: number) => Promise<void>;
+
+  // Legacy compat (no-ops that delegate to new actions)
   generateAndShowToken: () => void;
   tokenCountdownTick: () => void;
-  startSession: () => void;
   tick: () => void;
-  requestUnlock: () => void;
-  cancelUnlock: () => void;
+  startSession: () => void;
   completeSession: () => void;
   forceStop: (wasUnlocked: boolean) => void;
-  dismissReview: () => void;
-  startQuickSession: (name: string, durationMs: number) => void;
-  stopSession: () => void;
 }
-
-// ---------------------------------------------------------------------------
-// Mock data
-// ---------------------------------------------------------------------------
-
-const MOCK_TODAY_STATS: TodayStats = {
-  focusMinutes: 127,
-  sessionsCompleted: 3,
-  distractionsBlocked: 15,
-  currentStreak: 5,
-};
-
-const TOKEN_DISPLAY_SECONDS = 10;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-async function sha256(value: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(value);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function generateSessionRunId(): string {
-  return `run-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
 
 function getEnabledBlockingRules(): {
   domains: DaemonDomainRule[];
@@ -237,7 +163,7 @@ async function activateBlocking(sessionRunId: string): Promise<void> {
     if (domains.length === 0 && processes.length === 0) return;
     await daemonStartBlocking(sessionRunId, domains, processes);
   } catch {
-    // Daemon may not be running — extension-level blocking still applies via WebSocket
+    // TODO Phase 4: show toast warning to user
   }
 }
 
@@ -245,7 +171,18 @@ async function deactivateBlocking(sessionRunId: string): Promise<void> {
   try {
     await daemonStopBlocking(sessionRunId);
   } catch {
-    // Ignore — session is ending anyway
+    // TODO Phase 4: show toast info to user
+  }
+}
+
+function mapRustPhase(phase: RustPhase): SessionPhase {
+  switch (phase) {
+    case "idle": return "idle";
+    case "token-display": return "token-display";
+    case "active": return "active";
+    case "unlock-prompt": return "unlock-prompt";
+    case "paused": return "active"; // treat paused as active for now
+    case "completed": return "review";
   }
 }
 
@@ -253,23 +190,28 @@ async function deactivateBlocking(sessionRunId: string): Promise<void> {
 // Store
 // ---------------------------------------------------------------------------
 
+const INITIAL_TODAY_STATS: TodayStats = {
+  focusMinutes: 0,
+  sessionsCompleted: 0,
+  distractionsBlocked: 0,
+  currentStreak: 0,
+};
+
 export const useSessionStore = create<SessionState>((set, get) => ({
   phase: "idle",
   config: null,
   token: null,
-  tokenHash: null,
   sessionRunId: null,
   tokenCountdown: 0,
   timeRemainingMs: 0,
   currentBlockIndex: 0,
   distractionCount: 0,
   startedAt: null,
-  todayStats: MOCK_TODAY_STATS,
+  todayStats: INITIAL_TODAY_STATS,
   review: null,
-
-  // Backward compatibility
   isSessionActive: false,
   currentSessionName: null,
+  lastError: null,
 
   startConfiguring: () => {
     set({
@@ -278,6 +220,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       token: null,
       tokenCountdown: 0,
       review: null,
+      lastError: null,
     });
   },
 
@@ -285,287 +228,358 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ config });
   },
 
-  generateAndShowToken: () => {
+  launchSession: async () => {
     const { config } = get();
     if (!config) return;
 
-    // Level 5 (Nuclear) — skip token display, go straight to active
-    if (config.lockLevel === 5) {
-      const runId = generateSessionRunId();
-      set({
-        phase: "active",
-        token: null,
-        tokenHash: null,
-        sessionRunId: runId,
-        tokenCountdown: 0,
-        timeRemainingMs: config.durationMs,
-        currentBlockIndex: 0,
-        distractionCount: 0,
-        startedAt: Date.now(),
-        isSessionActive: true,
-        currentSessionName: config.presetName,
+    try {
+      const result = await sessionStart({
+        presetId: config.presetId,
+        presetName: config.presetName,
+        lockLevel: config.lockLevel,
+        durationMs: config.durationMs,
+        blocks: config.blocks,
       });
-      void activateBlocking(runId);
+
+      // Token returned from Rust (empty for level 5)
+      if (result.token) {
+        set({
+          phase: "token-display",
+          token: result.token,
+          sessionRunId: result.snapshot.runId,
+          tokenCountdown: result.snapshot.tokenCountdown,
+          timeRemainingMs: result.snapshot.timeRemainingMs,
+          lastError: null,
+        });
+      } else {
+        // Level 5 or immediate start
+        set({
+          phase: mapRustPhase(result.snapshot.phase),
+          token: null,
+          sessionRunId: result.snapshot.runId,
+          tokenCountdown: 0,
+          timeRemainingMs: result.snapshot.timeRemainingMs,
+          currentBlockIndex: 0,
+          distractionCount: 0,
+          startedAt: result.snapshot.startedAt,
+          isSessionActive: true,
+          currentSessionName: config.presetName,
+          lastError: null,
+        });
+        if (result.snapshot.runId) {
+          void activateBlocking(result.snapshot.runId);
+        }
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      set({ lastError: message });
+    }
+  },
+
+  requestUnlock: async () => {
+    try {
+      await sessionRequestUnlock();
+      set({ phase: "unlock-prompt" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      set({ lastError: message });
+    }
+  },
+
+  cancelUnlock: async () => {
+    try {
+      await sessionCancelUnlock();
+      set({ phase: "active" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      set({ lastError: message });
+    }
+  },
+
+  stopSession: async (token?: string) => {
+    const state = get();
+
+    // For lock level 1 or if no token needed, stop directly
+    if (state.config && state.config.lockLevel > 1 && state.phase === "active") {
+      // Show unlock prompt first
+      try {
+        await sessionRequestUnlock();
+        set({ phase: "unlock-prompt" });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        set({ lastError: message });
+      }
       return;
     }
 
-    const newToken = generateTokenBrowser(config.lockLevel);
-    // Hash the token asynchronously — store hash once ready, display plaintext meanwhile
-    sha256(newToken).then((hash) => {
-      set({ tokenHash: hash });
-    });
-    set({
-      phase: "token-display",
-      token: newToken,
-      tokenHash: null,
-      tokenCountdown: TOKEN_DISPLAY_SECONDS,
-    });
+    try {
+      const review = await sessionStop(token);
+
+      if (state.sessionRunId) {
+        void deactivateBlocking(state.sessionRunId);
+      }
+
+      set({
+        phase: "review",
+        timeRemainingMs: 0,
+        isSessionActive: false,
+        currentSessionName: null,
+        review,
+        lastError: null,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      set({ lastError: message });
+    }
+  },
+
+  dismissReview: async () => {
+    try {
+      await sessionDismiss();
+      set({
+        phase: "idle",
+        config: null,
+        token: null,
+        sessionRunId: null,
+        tokenCountdown: 0,
+        timeRemainingMs: 0,
+        currentBlockIndex: 0,
+        distractionCount: 0,
+        startedAt: null,
+        review: null,
+        isSessionActive: false,
+        currentSessionName: null,
+        lastError: null,
+      });
+    } catch {
+      // Reset locally anyway
+      set({ phase: "idle", review: null });
+    }
+  },
+
+  startQuickSession: async (name: string, durationMs: number) => {
+    const config: SessionConfig = {
+      presetId: "quick",
+      presetName: name,
+      lockLevel: 1,
+      durationMs,
+      blocks: [{ type: "focus", duration: durationMs / 60000, blockingEnabled: true }],
+    };
+
+    set({ config });
+
+    try {
+      const result = await sessionStart({
+        presetId: config.presetId,
+        presetName: config.presetName,
+        lockLevel: config.lockLevel,
+        durationMs: config.durationMs,
+        blocks: config.blocks,
+      });
+
+      set({
+        phase: mapRustPhase(result.snapshot.phase),
+        token: null,
+        sessionRunId: result.snapshot.runId,
+        tokenCountdown: 0,
+        timeRemainingMs: result.snapshot.timeRemainingMs,
+        currentBlockIndex: 0,
+        distractionCount: 0,
+        startedAt: result.snapshot.startedAt,
+        isSessionActive: true,
+        currentSessionName: name,
+        review: null,
+        lastError: null,
+      });
+
+      if (result.snapshot.runId) {
+        void activateBlocking(result.snapshot.runId);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      set({ lastError: message });
+    }
+  },
+
+  // -------------------------------------------------------------------------
+  // Legacy compat — these delegate to new async actions or are no-ops.
+  // The timer now runs in Rust, so tick() is not called from React anymore.
+  // -------------------------------------------------------------------------
+
+  generateAndShowToken: () => {
+    // Delegate to launchSession which handles token generation via Rust
+    void get().launchSession();
   },
 
   tokenCountdownTick: () => {
-    const state = get();
-    if (state.phase !== "token-display") return;
-
-    const next = state.tokenCountdown - 1;
-    if (next <= 0) {
-      // Auto-start session, clear plaintext token (keep hash)
-      const config = state.config;
-      if (!config) return;
-
-      const runId = generateSessionRunId();
-      set({
-        phase: "active",
-        token: null,
-        sessionRunId: runId,
-        tokenCountdown: 0,
-        timeRemainingMs: config.durationMs,
-        currentBlockIndex: 0,
-        distractionCount: 0,
-        startedAt: Date.now(),
-        isSessionActive: true,
-        currentSessionName: config.presetName,
-      });
-      void activateBlocking(runId);
-    } else {
-      set({ tokenCountdown: next });
-    }
-  },
-
-  startSession: () => {
-    const { config } = get();
-    if (!config) return;
-
-    const runId = generateSessionRunId();
-    set({
-      phase: "active",
-      token: null,
-      sessionRunId: runId,
-      tokenCountdown: 0,
-      timeRemainingMs: config.durationMs,
-      currentBlockIndex: 0,
-      distractionCount: 0,
-      startedAt: Date.now(),
-      isSessionActive: true,
-      currentSessionName: config.presetName,
-    });
-    void activateBlocking(runId);
+    // No-op: countdown is driven by Rust events now
   },
 
   tick: () => {
-    set((state) => {
-      if (state.phase !== "active" && state.phase !== "unlock-prompt") {
-        return state;
-      }
-
-      const next = state.timeRemainingMs - 1000;
-      if (next <= 0) {
-        // Session completed normally
-        const totalDurationMs = state.config?.durationMs ?? 0;
-        const actualFocusMs = totalDurationMs;
-        const focusScore = Math.max(
-          0,
-          Math.min(100, 100 - state.distractionCount * 5),
-        );
-
-        if (state.sessionRunId) void deactivateBlocking(state.sessionRunId);
-
-        return {
-          phase: "review" as const,
-          timeRemainingMs: 0,
-          isSessionActive: false,
-          currentSessionName: null,
-          review: {
-            sessionName: state.config?.presetName ?? "Session",
-            totalDurationMs,
-            actualFocusMs,
-            distractionCount: state.distractionCount,
-            completedNormally: true,
-            focusScore,
-          },
-        };
-      }
-
-      // Advance block index if needed
-      let newBlockIndex = state.currentBlockIndex;
-      if (state.config) {
-        const elapsed = (state.config.durationMs - next) / 1000 / 60; // minutes elapsed
-        let accum = 0;
-        for (let i = 0; i < state.config.blocks.length; i++) {
-          accum += state.config.blocks[i]?.duration ?? 0;
-          if (elapsed < accum) {
-            newBlockIndex = i;
-            break;
-          }
-        }
-      }
-
-      return {
-        timeRemainingMs: next,
-        currentBlockIndex: newBlockIndex,
-      };
-    });
+    // No-op: timer ticks come from Rust events now
   },
 
-  requestUnlock: () => {
-    const { phase } = get();
-    if (phase !== "active") return;
-    set({ phase: "unlock-prompt" });
-  },
-
-  cancelUnlock: () => {
-    const { phase } = get();
-    if (phase !== "unlock-prompt") return;
-    set({ phase: "active" });
+  startSession: () => {
+    // Delegate to launchSession
+    void get().launchSession();
   },
 
   completeSession: () => {
-    const state = get();
-    const totalDurationMs = state.config?.durationMs ?? 0;
-    const elapsed = state.startedAt ? Date.now() - state.startedAt : totalDurationMs;
-    const focusScore = Math.max(
-      0,
-      Math.min(100, 100 - state.distractionCount * 5),
-    );
-
-    if (state.sessionRunId) void deactivateBlocking(state.sessionRunId);
-
-    set({
-      phase: "review",
-      timeRemainingMs: 0,
-      isSessionActive: false,
-      currentSessionName: null,
-      review: {
-        sessionName: state.config?.presetName ?? "Session",
-        totalDurationMs,
-        actualFocusMs: Math.min(elapsed, totalDurationMs),
-        distractionCount: state.distractionCount,
-        completedNormally: true,
-        focusScore,
-      },
-    });
+    // Handled by Rust session:completed event
   },
 
   forceStop: (_wasUnlocked: boolean) => {
-    const state = get();
-    const totalDurationMs = state.config?.durationMs ?? 0;
-    const elapsed = state.startedAt ? Date.now() - state.startedAt : 0;
-    const focusScore = Math.max(
-      0,
-      Math.min(
-        100,
-        Math.round(((elapsed / Math.max(totalDurationMs, 1)) * 80) - state.distractionCount * 5),
-      ),
-    );
-
-    if (state.sessionRunId) void deactivateBlocking(state.sessionRunId);
-
-    set({
-      phase: "review",
-      timeRemainingMs: 0,
-      isSessionActive: false,
-      currentSessionName: null,
-      review: {
-        sessionName: state.config?.presetName ?? "Session",
-        totalDurationMs,
-        actualFocusMs: elapsed,
-        distractionCount: state.distractionCount,
-        completedNormally: false,
-        focusScore: Math.max(0, focusScore),
-      },
-    });
-  },
-
-  dismissReview: () => {
-    set({
-      phase: "idle",
-      config: null,
-      token: null,
-      tokenHash: null,
-      sessionRunId: null,
-      tokenCountdown: 0,
-      timeRemainingMs: 0,
-      currentBlockIndex: 0,
-      distractionCount: 0,
-      startedAt: null,
-      review: null,
-      isSessionActive: false,
-      currentSessionName: null,
-    });
-  },
-
-  startQuickSession: (name: string, durationMs: number) => {
-    const runId = generateSessionRunId();
-    set({
-      phase: "active",
-      config: {
-        presetId: "quick",
-        presetName: name,
-        lockLevel: 1,
-        durationMs,
-        blocks: [{ type: "focus", duration: durationMs / 60000, blockingEnabled: true }],
-      },
-      token: null,
-      tokenHash: null,
-      sessionRunId: runId,
-      tokenCountdown: 0,
-      timeRemainingMs: durationMs,
-      currentBlockIndex: 0,
-      distractionCount: 0,
-      startedAt: Date.now(),
-      isSessionActive: true,
-      currentSessionName: name,
-      review: null,
-    });
-    void activateBlocking(runId);
-  },
-
-  stopSession: () => {
-    const state = get();
-    if (state.config && state.config.lockLevel > 1) {
-      set({ phase: "unlock-prompt" });
-      return;
-    }
-
-    // For lock level 1 or quick sessions, stop immediately
-    const totalDurationMs = state.config?.durationMs ?? 0;
-    const elapsed = state.startedAt ? Date.now() - state.startedAt : 0;
-
-    set({
-      phase: "review",
-      timeRemainingMs: 0,
-      isSessionActive: false,
-      currentSessionName: null,
-      review: {
-        sessionName: state.config?.presetName ?? "Session",
-        totalDurationMs,
-        actualFocusMs: elapsed,
-        distractionCount: state.distractionCount,
-        completedNormally: false,
-        focusScore: Math.max(
-          0,
-          Math.round(((elapsed / Math.max(totalDurationMs, 1)) * 80) - state.distractionCount * 5),
-        ),
-      },
-    });
+    void get().stopSession();
   },
 }));
+
+// ---------------------------------------------------------------------------
+// Tauri event listeners — sync Rust state → Zustand
+// ---------------------------------------------------------------------------
+
+/** Initialize event listeners. Call once at app startup. */
+export function initSessionListeners(): void {
+  // Timer tick from Rust (every second)
+  void listen<TickPayload>("session:tick", (event) => {
+    useSessionStore.setState({
+      timeRemainingMs: event.payload.timeRemainingMs,
+      currentBlockIndex: event.payload.currentBlockIndex,
+    });
+  });
+
+  // Phase changed
+  void listen<PhaseChangedPayload>("session:phase_changed", (event) => {
+    const { snapshot } = event.payload;
+    const phase = mapRustPhase(snapshot.phase);
+
+    useSessionStore.setState({
+      phase,
+      sessionRunId: snapshot.runId,
+      timeRemainingMs: snapshot.timeRemainingMs,
+      currentBlockIndex: snapshot.currentBlockIndex,
+      distractionCount: snapshot.distractionCount,
+      startedAt: snapshot.startedAt,
+      tokenCountdown: snapshot.tokenCountdown,
+      isSessionActive: phase === "active" || phase === "unlock-prompt",
+      currentSessionName: snapshot.presetName,
+    });
+
+    // Activate blocking when session becomes active
+    if (phase === "active" && snapshot.runId) {
+      void activateBlocking(snapshot.runId);
+    }
+
+    // Deactivate blocking when session completes
+    if (phase === "review" && snapshot.runId) {
+      void deactivateBlocking(snapshot.runId);
+    }
+  });
+
+  // Session completed
+  void listen<SessionCompletedPayload>("session:completed", (event) => {
+    const state = useSessionStore.getState();
+    const runId = state.sessionRunId;
+    if (runId) {
+      void deactivateBlocking(runId);
+    }
+
+    const review = event.payload.review;
+
+    useSessionStore.setState({
+      phase: "review",
+      timeRemainingMs: 0,
+      isSessionActive: false,
+      currentSessionName: null,
+      review,
+    });
+
+    // Persist session run to SQLite
+    if (runId) {
+      void persistSessionRun(runId, state, review);
+    }
+  });
+
+  // Token display events
+  void listen<TokenDisplayPayload>("session:token_display", (event) => {
+    useSessionStore.setState({
+      phase: "token-display",
+      token: event.payload.token,
+      tokenCountdown: event.payload.countdown,
+    });
+  });
+
+  // Token countdown
+  void listen<{ countdown: number }>("session:token_countdown", (event) => {
+    useSessionStore.setState({
+      tokenCountdown: event.payload.countdown,
+    });
+  });
+
+  // Sync state on startup (in case app restarted during a session)
+  void sessionStatus().then((snapshot) => {
+    if (snapshot.phase !== "idle") {
+      const phase = mapRustPhase(snapshot.phase);
+      useSessionStore.setState({
+        phase,
+        sessionRunId: snapshot.runId,
+        timeRemainingMs: snapshot.timeRemainingMs,
+        currentBlockIndex: snapshot.currentBlockIndex,
+        distractionCount: snapshot.distractionCount,
+        startedAt: snapshot.startedAt,
+        isSessionActive: phase === "active" || phase === "unlock-prompt",
+        currentSessionName: snapshot.presetName,
+      });
+    }
+  }).catch(() => {
+    // Not running in Tauri (e.g., browser dev mode) — ignore
+  });
+
+  // Hydrate today stats from SQLite
+  void loadTodayStats();
+}
+
+async function persistSessionRun(
+  runId: string,
+  state: SessionState,
+  review: SessionReview,
+): Promise<void> {
+  try {
+    const startedAt = state.startedAt
+      ? new Date(state.startedAt).toISOString()
+      : new Date().toISOString();
+
+    await storageSaveSessionRun({
+      id: runId,
+      sessionId: state.config?.presetId ?? "unknown",
+      startedAt,
+      endedAt: new Date().toISOString(),
+      status: review.completedNormally ? "completed" : "aborted",
+      distractionCount: review.distractionCount,
+      focusScore: review.focusScore,
+      totalFocusMinutes: review.actualFocusMs / 60_000,
+      totalBreakMinutes: (review.totalDurationMs - review.actualFocusMs) / 60_000,
+      completedNormally: review.completedNormally,
+    });
+
+    // Refresh today stats after persisting
+    await loadTodayStats();
+  } catch {
+    // TODO Phase 4: show toast error
+  }
+}
+
+async function loadTodayStats(): Promise<void> {
+  try {
+    const stats: StorageTodayStats = await storageGetTodayStats();
+    useSessionStore.setState({
+      todayStats: {
+        focusMinutes: Math.round(stats.focusMinutes),
+        sessionsCompleted: stats.sessionsCompleted,
+        distractionsBlocked: stats.distractionsBlocked,
+        currentStreak: stats.currentStreak,
+      },
+    });
+  } catch {
+    // Not running in Tauri (e.g., browser dev mode) or DB not ready — ignore
+  }
+}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/Card";
 import { Heatmap } from "@/components/analytics/Heatmap";
 import { TrendChart } from "@/components/analytics/TrendChart";
@@ -8,12 +8,16 @@ import { StreakCounter } from "@/components/analytics/StreakCounter";
 import { PeakHours } from "@/components/analytics/PeakHours";
 import { Insights } from "@/components/analytics/Insights";
 import {
-  generateYearData,
-  generateTodayTimeline,
-  generateTrendData,
-  generateDistractionData,
-  generatePeakHoursData,
-  generateSummary,
+  storageGetStatsRange,
+  storageGetStreak,
+  type DailyStatsRecord,
+} from "@/tauri/storage";
+import type {
+  DayData,
+  TimelineEntry,
+  TrendPoint,
+  DistractionCategory,
+  PeakHourPoint,
 } from "@/data/mock-analytics";
 
 type Period = "30d" | "90d" | "1y";
@@ -26,20 +30,179 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
 
 const MILESTONES = [7, 30, 100, 365];
 
-function getTrendDays(period: Period): 30 | 90 {
-  return period === "90d" || period === "1y" ? 90 : 30;
+function formatDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function periodToDays(period: Period): number {
+  switch (period) {
+    case "30d": return 30;
+    case "90d": return 90;
+    case "1y": return 365;
+  }
+}
+
+function statsToYearData(stats: DailyStatsRecord[]): DayData[] {
+  const map = new Map<string, number>();
+  for (const s of stats) {
+    map.set(s.date, s.totalFocusMinutes);
+  }
+
+  const data: DayData[] = [];
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - 364);
+
+  for (let i = 0; i < 365; i++) {
+    const current = new Date(start);
+    current.setDate(current.getDate() + i);
+    const dateStr = formatDate(current);
+    data.push({
+      date: dateStr,
+      focusMinutes: Math.round(map.get(dateStr) ?? 0),
+    });
+  }
+
+  return data;
+}
+
+function statsToTrendData(stats: DailyStatsRecord[], days: number): TrendPoint[] {
+  const map = new Map<string, number>();
+  for (const s of stats) {
+    map.set(s.date, s.totalFocusMinutes);
+  }
+
+  const data: TrendPoint[] = [];
+  const today = new Date();
+
+  for (let i = days - 1; i >= 0; i--) {
+    const current = new Date(today);
+    current.setDate(current.getDate() - i);
+    const dateStr = formatDate(current);
+    data.push({
+      date: dateStr,
+      minutes: Math.round(map.get(dateStr) ?? 0),
+    });
+  }
+
+  return data;
+}
+
+function statsToDistractionData(stats: DailyStatsRecord[]): DistractionCategory[] {
+  const categoryMap = new Map<string, number>();
+
+  for (const s of stats) {
+    try {
+      const distractors: { target: string; count: number }[] = JSON.parse(s.topDistractors);
+      for (const d of distractors) {
+        categoryMap.set(d.target, (categoryMap.get(d.target) ?? 0) + d.count);
+      }
+    } catch {
+      // Skip invalid JSON
+    }
+  }
+
+  if (categoryMap.size === 0) {
+    return [{ category: "None yet", count: 0 }];
+  }
+
+  return Array.from(categoryMap.entries())
+    .map(([category, count]) => ({ category, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+}
+
+function statsToTimeline(todayStats: DailyStatsRecord | undefined): TimelineEntry[] {
+  // Without per-block timestamps, show a simplified timeline
+  if (!todayStats || todayStats.totalFocusMinutes === 0) {
+    return [{ startHour: 0, endHour: 24, type: "idle" }];
+  }
+
+  const focusHours = todayStats.totalFocusMinutes / 60;
+  const now = new Date().getHours();
+  const focusStart = Math.max(0, now - focusHours);
+
+  return [
+    { startHour: 0, endHour: focusStart, type: "idle" },
+    { startHour: focusStart, endHour: now, type: "focus" },
+    { startHour: now, endHour: 24, type: "idle" },
+  ];
+}
+
+function statsToPeakHours(_stats: DailyStatsRecord[]): PeakHourPoint[] {
+  // Without hourly granularity in the DB, return empty for now
+  const data: PeakHourPoint[] = [];
+  for (let h = 0; h < 24; h++) {
+    data.push({ hour: h, minutes: 0 });
+  }
+  return data;
 }
 
 export function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>("30d");
+  const [stats, setStats] = useState<DailyStatsRecord[]>([]);
+  const [streak, setStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
 
-  const yearData = useMemo(() => generateYearData(), []);
-  const timelineData = useMemo(() => generateTodayTimeline(), []);
-  const trendDays = getTrendDays(period);
-  const trendData = useMemo(() => generateTrendData(trendDays), [trendDays]);
-  const distractionData = useMemo(() => generateDistractionData(), []);
-  const peakHoursData = useMemo(() => generatePeakHoursData(), []);
-  const summary = useMemo(() => generateSummary(), []);
+  useEffect(() => {
+    const days = periodToDays(period);
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - days);
+
+    void storageGetStatsRange(formatDate(start), formatDate(end))
+      .then(setStats)
+      .catch(() => setStats([]));
+
+    void storageGetStreak()
+      .then((s) => {
+        setStreak(s);
+        setLongestStreak((prev) => Math.max(prev, s));
+      })
+      .catch(() => {});
+  }, [period]);
+
+  // Also load year data for heatmap
+  const [yearStats, setYearStats] = useState<DailyStatsRecord[]>([]);
+  useEffect(() => {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - 364);
+
+    void storageGetStatsRange(formatDate(start), formatDate(end))
+      .then(setYearStats)
+      .catch(() => setYearStats([]));
+  }, []);
+
+  const yearData = useMemo(() => statsToYearData(yearStats), [yearStats]);
+  const trendDays: 30 | 90 = period === "30d" ? 30 : 90;
+  const trendData = useMemo(() => statsToTrendData(stats, trendDays), [stats, trendDays]);
+  const distractionData = useMemo(() => statsToDistractionData(stats), [stats]);
+  const peakHoursData = useMemo(() => statsToPeakHours(stats), [stats]);
+
+  const todayStr = formatDate(new Date());
+  const todayStats = stats.find((s) => s.date === todayStr);
+  const timelineData = useMemo(() => statsToTimeline(todayStats), [todayStats]);
+
+  const totalFocus = stats.reduce((sum, s) => sum + s.totalFocusMinutes, 0);
+  const totalSessions = stats.reduce((sum, s) => sum + s.sessionsCompleted + s.sessionsAborted, 0);
+  const avgDaily = totalSessions > 0 ? totalFocus / Math.max(stats.length, 1) : 0;
+
+  const prevStats = stats.slice(0, Math.floor(stats.length / 2));
+  const prevFocus = prevStats.reduce((sum, s) => sum + s.totalFocusMinutes, 0);
+  const currentStats = stats.slice(Math.floor(stats.length / 2));
+  const currentFocus = currentStats.reduce((sum, s) => sum + s.totalFocusMinutes, 0);
+
+  const topDistractor = distractionData[0]?.category ?? "None";
+
+  // Peak hour from data
+  const peak = peakHoursData.reduce(
+    (best, entry) => (entry.minutes > best.minutes ? entry : best),
+    peakHoursData[0] ?? { hour: 0, minutes: 0 },
+  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -85,8 +248,8 @@ export function AnalyticsPage() {
             Streak
           </h2>
           <StreakCounter
-            currentStreak={summary.currentStreak}
-            longestStreak={summary.longestStreak}
+            currentStreak={streak}
+            longestStreak={longestStreak}
             milestones={MILESTONES}
           />
         </Card>
@@ -119,11 +282,11 @@ export function AnalyticsPage() {
             Insights
           </h2>
           <Insights
-            weeklyFocusMinutes={summary.weeklyFocusMinutes}
-            previousWeekFocusMinutes={summary.previousWeekFocusMinutes}
-            peakHour={summary.peakHour}
-            topDistractor={summary.topDistractor}
-            averageDailyMinutes={summary.averageDailyMinutes}
+            weeklyFocusMinutes={Math.round(currentFocus)}
+            previousWeekFocusMinutes={Math.round(prevFocus)}
+            peakHour={peak.hour}
+            topDistractor={topDistractor}
+            averageDailyMinutes={Math.round(avgDaily)}
           />
         </Card>
       </div>
