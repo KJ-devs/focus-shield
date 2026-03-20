@@ -23,6 +23,14 @@ export type BlocklistCategory =
   | "entertainment"
   | "news"
   | "shopping"
+  | "adult"
+  | "dating"
+  | "gambling"
+  | "crypto"
+  | "timekillers"
+  | "ai"
+  | "sports"
+  | "food"
   | "custom";
 
 // Domain/process rule action types

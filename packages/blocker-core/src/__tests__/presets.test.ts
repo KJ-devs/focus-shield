@@ -12,11 +12,19 @@ describe("BLOCKLIST_PRESETS", () => {
     "gaming",
     "news",
     "shopping",
+    "adult",
+    "dating",
+    "gambling",
+    "crypto",
+    "timekillers",
+    "ai",
+    "sports",
+    "food",
   ] as const;
 
-  it("has all 5 categories", () => {
+  it("has all 13 categories", () => {
     const keys = Object.keys(BLOCKLIST_PRESETS);
-    expect(keys).toHaveLength(5);
+    expect(keys).toHaveLength(13);
     for (const cat of categories) {
       expect(BLOCKLIST_PRESETS).toHaveProperty(cat);
     }
@@ -92,9 +100,12 @@ describe("BLOCKLIST_PRESETS", () => {
       expect(patterns).toContain("*.9gag.com");
     });
 
-    it("contains suspend-action processes", () => {
+    it("contains suspend-action processes for media players", () => {
       const ent = BLOCKLIST_PRESETS.entertainment;
-      for (const proc of ent.processes) {
+      const mediaPlayers = ent.processes.filter(
+        (p) => p.name === "spotify" || p.name === "vlc",
+      );
+      for (const proc of mediaPlayers) {
         expect(proc.action).toBe("suspend");
       }
     });
@@ -158,6 +169,119 @@ describe("BLOCKLIST_PRESETS", () => {
       expect(BLOCKLIST_PRESETS.shopping.processes).toHaveLength(0);
     });
   });
+
+  describe("adult preset", () => {
+    it("contains expected domain patterns", () => {
+      const adult = BLOCKLIST_PRESETS.adult;
+      const patterns = adult.domains.map((d) => d.pattern);
+      expect(patterns).toContain("*.pornhub.com");
+      expect(patterns).toContain("*.onlyfans.com");
+    });
+
+    it("has no processes", () => {
+      expect(BLOCKLIST_PRESETS.adult.processes).toHaveLength(0);
+    });
+  });
+
+  describe("dating preset", () => {
+    it("contains expected domain patterns", () => {
+      const dating = BLOCKLIST_PRESETS.dating;
+      const patterns = dating.domains.map((d) => d.pattern);
+      expect(patterns).toContain("*.tinder.com");
+      expect(patterns).toContain("*.bumble.com");
+    });
+
+    it("contains expected processes", () => {
+      const dating = BLOCKLIST_PRESETS.dating;
+      const processNames = dating.processes.map((p) => p.name);
+      expect(processNames).toContain("tinder");
+      expect(processNames).toContain("bumble");
+    });
+  });
+
+  describe("gambling preset", () => {
+    it("contains expected domain patterns", () => {
+      const gambling = BLOCKLIST_PRESETS.gambling;
+      const patterns = gambling.domains.map((d) => d.pattern);
+      expect(patterns).toContain("*.bet365.com");
+      expect(patterns).toContain("*.pokerstars.com");
+      expect(patterns).toContain("*.winamax.fr");
+    });
+
+    it("has no processes", () => {
+      expect(BLOCKLIST_PRESETS.gambling.processes).toHaveLength(0);
+    });
+  });
+
+  describe("crypto preset", () => {
+    it("contains expected domain patterns", () => {
+      const crypto = BLOCKLIST_PRESETS.crypto;
+      const patterns = crypto.domains.map((d) => d.pattern);
+      expect(patterns).toContain("*.binance.com");
+      expect(patterns).toContain("*.coinbase.com");
+      expect(patterns).toContain("*.tradingview.com");
+    });
+
+    it("has no processes", () => {
+      expect(BLOCKLIST_PRESETS.crypto.processes).toHaveLength(0);
+    });
+  });
+
+  describe("timekillers preset", () => {
+    it("contains expected domain patterns", () => {
+      const tk = BLOCKLIST_PRESETS.timekillers;
+      const patterns = tk.domains.map((d) => d.pattern);
+      expect(patterns).toContain("*.boredpanda.com");
+      expect(patterns).toContain("*.topito.com");
+    });
+
+    it("has no processes", () => {
+      expect(BLOCKLIST_PRESETS.timekillers.processes).toHaveLength(0);
+    });
+  });
+
+  describe("ai preset", () => {
+    it("contains expected domain patterns", () => {
+      const ai = BLOCKLIST_PRESETS.ai;
+      const patterns = ai.domains.map((d) => d.pattern);
+      expect(patterns).toContain("*.chatgpt.com");
+      expect(patterns).toContain("*.claude.ai");
+      expect(patterns).toContain("*.perplexity.ai");
+      expect(patterns).toContain("*.midjourney.com");
+    });
+
+    it("has no processes", () => {
+      expect(BLOCKLIST_PRESETS.ai.processes).toHaveLength(0);
+    });
+  });
+
+  describe("sports preset", () => {
+    it("contains expected domain patterns", () => {
+      const sports = BLOCKLIST_PRESETS.sports;
+      const patterns = sports.domains.map((d) => d.pattern);
+      expect(patterns).toContain("*.espn.com");
+      expect(patterns).toContain("*.lequipe.fr");
+      expect(patterns).toContain("*.nba.com");
+    });
+
+    it("has no processes", () => {
+      expect(BLOCKLIST_PRESETS.sports.processes).toHaveLength(0);
+    });
+  });
+
+  describe("food preset", () => {
+    it("contains expected domain patterns", () => {
+      const food = BLOCKLIST_PRESETS.food;
+      const patterns = food.domains.map((d) => d.pattern);
+      expect(patterns).toContain("*.ubereats.com");
+      expect(patterns).toContain("*.deliveroo.com");
+      expect(patterns).toContain("*.doordash.com");
+    });
+
+    it("has no processes", () => {
+      expect(BLOCKLIST_PRESETS.food.processes).toHaveLength(0);
+    });
+  });
 });
 
 describe("getBlocklistPreset", () => {
@@ -197,9 +321,9 @@ describe("getBlocklistPreset", () => {
 });
 
 describe("getAllBlocklistPresets", () => {
-  it("returns 5 presets", () => {
+  it("returns 13 presets", () => {
     const presets = getAllBlocklistPresets();
-    expect(presets).toHaveLength(5);
+    expect(presets).toHaveLength(13);
   });
 
   it("returns an array of BlocklistPreset objects", () => {
@@ -220,5 +344,13 @@ describe("getAllBlocklistPresets", () => {
     expect(ids).toContain("builtin-gaming");
     expect(ids).toContain("builtin-news");
     expect(ids).toContain("builtin-shopping");
+    expect(ids).toContain("builtin-adult");
+    expect(ids).toContain("builtin-dating");
+    expect(ids).toContain("builtin-gambling");
+    expect(ids).toContain("builtin-crypto");
+    expect(ids).toContain("builtin-timekillers");
+    expect(ids).toContain("builtin-ai");
+    expect(ids).toContain("builtin-sports");
+    expect(ids).toContain("builtin-food");
   });
 });

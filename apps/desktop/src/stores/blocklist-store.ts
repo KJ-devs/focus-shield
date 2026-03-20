@@ -14,6 +14,7 @@ export interface BlocklistData {
   processes: ProcessRule[];
   isBuiltIn: boolean;
   enabled: boolean;
+  hidden?: boolean;
 }
 
 export interface BlocklistState {
@@ -202,6 +203,7 @@ const BUILTIN_BLOCKLISTS: BlocklistData[] = [
     processes: [],
     isBuiltIn: true,
     enabled: false,
+    hidden: true,
   },
   {
     id: "builtin-dating",
@@ -287,6 +289,72 @@ const BUILTIN_BLOCKLISTS: BlocklistData[] = [
       "*.viedemerde.fr",
       "*.topito.com",
       "*.konbini.com",
+    ],
+    processes: [],
+    isBuiltIn: true,
+    enabled: false,
+  },
+  {
+    id: "builtin-ai",
+    name: "AI & Chatbots",
+    icon: "robot",
+    category: "ai",
+    domains: [
+      "*.chatgpt.com",
+      "chat.openai.com",
+      "*.claude.ai",
+      "*.gemini.google.com",
+      "*.perplexity.ai",
+      "*.poe.com",
+      "*.character.ai",
+      "*.midjourney.com",
+      "*.copilot.microsoft.com",
+      "*.deepseek.com",
+      "*.huggingface.co",
+    ],
+    processes: [],
+    isBuiltIn: true,
+    enabled: false,
+  },
+  {
+    id: "builtin-sports",
+    name: "Sports",
+    icon: "trophy",
+    category: "sports",
+    domains: [
+      "*.espn.com",
+      "*.lequipe.fr",
+      "*.eurosport.com",
+      "*.skysports.com",
+      "*.marca.com",
+      "*.flashscore.com",
+      "*.sofascore.com",
+      "*.transfermarkt.com",
+      "*.footmercato.net",
+      "*.nba.com",
+      "*.nfl.com",
+      "*.fifa.com",
+    ],
+    processes: [],
+    isBuiltIn: true,
+    enabled: false,
+  },
+  {
+    id: "builtin-food",
+    name: "Food & Delivery",
+    icon: "utensils",
+    category: "food",
+    domains: [
+      "*.ubereats.com",
+      "*.doordash.com",
+      "*.deliveroo.com",
+      "*.deliveroo.fr",
+      "*.justeat.com",
+      "*.justeat.fr",
+      "*.grubhub.com",
+      "*.postmates.com",
+      "*.seamless.com",
+      "*.foodpanda.com",
     ],
     processes: [],
     isBuiltIn: true,

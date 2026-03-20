@@ -326,7 +326,9 @@ export function BlocklistsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const builtInLists = blocklists.filter((b) => b.isBuiltIn);
+  const [showHidden, setShowHidden] = useState(false);
+  const builtInLists = blocklists.filter((b) => b.isBuiltIn && !b.hidden);
+  const hiddenLists = blocklists.filter((b) => b.isBuiltIn && b.hidden);
   const customLists = blocklists.filter((b) => !b.isBuiltIn);
 
   const enabledCount = blocklists.filter((b) => b.enabled).length;
@@ -355,6 +357,36 @@ export function BlocklistsPage() {
             <BuiltInBlocklistCard key={blocklist.id} blocklist={blocklist} />
           ))}
         </div>
+
+        {hiddenLists.length > 0 && (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setShowHidden(!showHidden)}
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            >
+              <svg
+                className={`h-4 w-4 transition-transform ${showHidden ? "rotate-90" : ""}`}
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              {showHidden ? "Hide" : "Show"} sensitive lists ({hiddenLists.length})
+            </button>
+            {showHidden && (
+              <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {hiddenLists.map((blocklist) => (
+                  <BuiltInBlocklistCard key={blocklist.id} blocklist={blocklist} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Custom blocklists */}
