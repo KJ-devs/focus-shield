@@ -70,4 +70,30 @@ test.describe("Sessions Page", () => {
       page.locator("h1", { hasText: "Sessions" }),
     ).toBeVisible();
   });
+
+  test("should show idle view with 'No Active Session' when no session is running", async ({
+    page,
+  }) => {
+    await page.goto("/sessions");
+
+    await expect(page.locator("text=No Active Session")).toBeVisible();
+    await expect(page.locator("text=Start a Session")).toBeVisible();
+  });
+
+  test("should show scheduled sessions section", async ({
+    page,
+  }) => {
+    await page.goto("/sessions");
+
+    await expect(page.getByRole("heading", { name: "Scheduled Sessions" })).toBeVisible();
+  });
+
+  test("should navigate to launch page when clicking Start a Session", async ({
+    page,
+  }) => {
+    await page.goto("/sessions");
+
+    await page.locator("text=Start a Session").click();
+    await expect(page).toHaveURL(/\/launch/);
+  });
 });

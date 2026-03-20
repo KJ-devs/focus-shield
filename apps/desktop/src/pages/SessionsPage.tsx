@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSessionStore } from "@/stores/session-store";
 import { useScheduleStore } from "@/stores/schedule-store";
@@ -491,6 +491,31 @@ function ReviewView() {
 // Main sessions page
 // ---------------------------------------------------------------------------
 
+function TokenDisplayRedirect() {
+  const navigate = useNavigate();
+  const phase = useSessionStore((s) => s.phase);
+
+  useEffect(() => {
+    if (phase === "token-display") {
+      navigate("/launch");
+    }
+  }, [phase, navigate]);
+
+  return (
+    <div className="flex flex-col items-center gap-6">
+      <Card className="flex max-w-md flex-col items-center gap-4 py-12">
+        <span className="text-5xl">{"\uD83D\uDD11"}</span>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          Token Display Active
+        </h2>
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+          Redirecting to token display...
+        </p>
+      </Card>
+    </div>
+  );
+}
+
 export function SessionsPage() {
   const phase = useSessionStore((s) => s.phase);
 
@@ -503,6 +528,7 @@ export function SessionsPage() {
       {phase === "active" && <ActiveSessionView />}
       {phase === "unlock-prompt" && <UnlockPromptView />}
       {phase === "review" && <ReviewView />}
+      {phase === "token-display" && <TokenDisplayRedirect />}
       {(phase === "idle" || phase === "configuring") && <IdleView />}
     </div>
   );
