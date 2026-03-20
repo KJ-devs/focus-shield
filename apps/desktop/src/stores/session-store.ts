@@ -255,6 +255,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { config } = get();
     if (!config) return;
 
+    // Dismiss any lingering session (token-display, completed, etc.)
+    try { await sessionDismiss(); } catch { /* ignore if already idle */ }
+
     try {
       const result = await sessionStart({
         presetId: config.presetId,
@@ -402,6 +405,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     };
 
     set({ config });
+
+    // Dismiss any lingering session (token-display, completed, etc.)
+    try { await sessionDismiss(); } catch { /* ignore if already idle */ }
 
     try {
       const result = await sessionStart({
