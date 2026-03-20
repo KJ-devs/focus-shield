@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type ClipboardEvent, type FormEvent } from "react";
+import { useState, useEffect, useCallback, useRef, type ClipboardEvent, type DragEvent, type FormEvent } from "react";
 import type { LockLevel } from "@focus-shield/shared-types";
 import { Button } from "@/components/ui/Button";
 import { TOKEN_CONFIG } from "@/stores/session-store";
@@ -63,10 +63,61 @@ export function PasswordInput({ onSubmit, onCancel, lockLevel }: PasswordInputPr
     (e: ClipboardEvent<HTMLInputElement>) => {
       if (!config.pasteAllowed) {
         e.preventDefault();
-        setError("Paste is disabled for this lock level");
+        e.stopPropagation();
+        setError("Paste is disabled — you must type the token manually");
       }
     },
     [config.pasteAllowed],
+  );
+
+  const handleDrop = useCallback(
+    (e: DragEvent<HTMLInputElement>) => {
+      if (!config.pasteAllowed) {
+        e.preventDefault();
+        e.stopPropagation();
+        setError("Drag & drop is disabled — you must type the token manually");
+      }
+    },
+    [config.pasteAllowed],
+  );
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent<HTMLInputElement>) => {
+      if (!config.pasteAllowed) {
+        e.preventDefault();
+        setError("Right-click is disabled for this lock level");
+      }
+    },
+    [config.pasteAllowed],
+  );
+
+  // Block programmatic value injection via JS — monitor for suspicious jumps
+  const lastLengthRef = useRef(0);
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = e.target.value;
+      // If more than 2 characters were added at once and paste is blocked,
+      // this is likely an auto-fill or programmatic injection
+      if (!config.pasteAllowed && newValue.length - lastLengthRef.current > 2) {
+        setError("Auto-fill detected — you must type each character manually");
+        return;
+      }
+      lastLengthRef.current = newValue.length;
+      setValue(newValue);
+    },
+    [config.pasteAllowed],
+  );
+
+  const handleConfirmChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = e.target.value;
+      if (!config.pasteAllowed && newValue.length - confirmValue.length > 2) {
+        setError("Auto-fill detected — you must type each character manually");
+        return;
+      }
+      setConfirmValue(newValue);
+    },
+    [config.pasteAllowed, confirmValue.length],
   );
 
   const handleSubmit = useCallback(
@@ -147,14 +198,20 @@ export function PasswordInput({ onSubmit, onCancel, lockLevel }: PasswordInputPr
                 data-testid="token-input"
                 type={showPassword ? "text" : "password"}
                 value={value}
-                onChange={(e) => setValue(e.target.value)}
+                onChange={handleInputChange}
                 onPaste={handlePaste}
+                onDrop={handleDrop}
+                onDragOver={(e) => { if (!config.pasteAllowed) e.preventDefault(); }}
+                onContextMenu={handleContextMenu}
                 disabled={isInputDisabled}
                 autoComplete="off"
                 autoCorrect="off"
+                autoCapitalize="off"
                 spellCheck={false}
+                data-form-type="other"
+                data-lpignore="true"
                 className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 font-mono text-lg tracking-wider text-gray-900 placeholder-gray-400 focus:border-focus-500 focus:outline-none focus:ring-2 focus:ring-focus-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500"
-                placeholder="Enter your token..."
+                placeholder="Type your token..."
               />
               <button
                 type="button"
@@ -180,14 +237,20 @@ export function PasswordInput({ onSubmit, onCancel, lockLevel }: PasswordInputPr
                 id="token-confirm"
                 type={showPassword ? "text" : "password"}
                 value={confirmValue}
-                onChange={(e) => setConfirmValue(e.target.value)}
+                onChange={handleConfirmChange}
                 onPaste={handlePaste}
+                onDrop={handleDrop}
+                onDragOver={(e) => { if (!config.pasteAllowed) e.preventDefault(); }}
+                onContextMenu={handleContextMenu}
                 disabled={isInputDisabled}
                 autoComplete="off"
                 autoCorrect="off"
+                autoCapitalize="off"
                 spellCheck={false}
+                data-form-type="other"
+                data-lpignore="true"
                 className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 font-mono text-lg tracking-wider text-gray-900 placeholder-gray-400 focus:border-focus-500 focus:outline-none focus:ring-2 focus:ring-focus-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500"
-                placeholder="Re-enter your token..."
+                placeholder="Re-type your token..."
               />
             </div>
           )}

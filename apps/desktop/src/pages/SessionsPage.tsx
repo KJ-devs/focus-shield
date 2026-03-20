@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSessionStore } from "@/stores/session-store";
+import { useBlocklistStore } from "@/stores/blocklist-store";
 import { useScheduleStore } from "@/stores/schedule-store";
 import type { SchedulePattern } from "@/stores/schedule-store";
 import { CircularTimer } from "@/components/session/CircularTimer";
@@ -102,6 +103,87 @@ function BlockProgression() {
 }
 
 // ---------------------------------------------------------------------------
+// Blocked items list (shown during active session)
+// ---------------------------------------------------------------------------
+
+function BlockedItemsList() {
+  const blocklists = useBlocklistStore((s) => s.blocklists);
+  const [expanded, setExpanded] = useState(false);
+
+  const enabledLists = blocklists.filter((b) => b.enabled);
+  const allDomains = enabledLists.flatMap((b) => b.domains);
+  const allProcesses = enabledLists.flatMap((b) => b.processes);
+
+  if (allDomains.length === 0 && allProcesses.length === 0) return null;
+
+  return (
+    <div className="w-full max-w-lg">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center justify-between rounded-lg px-4 py-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+      >
+        <span>
+          Blocked: {allDomains.length} site{allDomains.length !== 1 ? "s" : ""}, {allProcesses.length} app{allProcesses.length !== 1 ? "s" : ""}
+        </span>
+        <svg
+          className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="mt-2 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          {allDomains.length > 0 && (
+            <div className="mb-3">
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                Blocked Sites
+              </h4>
+              <div className="flex flex-wrap gap-1.5">
+                {allDomains.map((domain) => (
+                  <span
+                    key={domain}
+                    className="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10 dark:bg-red-900/20 dark:text-red-400 dark:ring-red-500/20"
+                  >
+                    {domain}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {allProcesses.length > 0 && (
+            <div>
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                Blocked Apps
+              </h4>
+              <div className="flex flex-wrap gap-1.5">
+                {allProcesses.map((proc) => (
+                  <span
+                    key={proc.name}
+                    className="inline-flex items-center gap-1 rounded-md bg-orange-50 px-2 py-1 text-xs font-medium text-orange-700 ring-1 ring-inset ring-orange-600/10 dark:bg-orange-900/20 dark:text-orange-400 dark:ring-orange-500/20"
+                  >
+                    {proc.name}
+                    <span className="text-[10px] opacity-60">
+                      ({proc.action})
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Active session view
 // ---------------------------------------------------------------------------
 
@@ -160,6 +242,9 @@ function ActiveSessionView() {
           </span>
         </div>
       </div>
+
+      {/* Blocked items */}
+      <BlockedItemsList />
 
       {/* Controls */}
       {config?.lockLevel !== 5 && (
