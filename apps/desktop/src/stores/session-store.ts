@@ -437,11 +437,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   tokenCountdownTick: () => {
-    // No-op: countdown is driven by Rust events now
+    // Poll Rust for current countdown (events may not arrive reliably)
+    void syncSessionStatus();
   },
 
   tick: () => {
-    // No-op: timer ticks come from Rust events now
+    // Poll Rust for current timer state (events may not arrive reliably)
+    void syncSessionStatus();
   },
 
   startSession: () => {
@@ -470,38 +472,36 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 async function syncSessionStatus(): Promise<void> {
   try {
     const snapshot = await sessionStatus();
-    if (snapshot.phase !== "idle") {
-      const phase = mapRustPhase(snapshot.phase);
-      useSessionStore.setState({
-        phase,
-        sessionRunId: snapshot.runId,
-        timeRemainingMs: snapshot.timeRemainingMs,
-        currentBlockIndex: snapshot.currentBlockIndex,
-        distractionCount: snapshot.distractionCount,
-        startedAt: snapshot.startedAt,
-        isSessionActive: phase === "active" || phase === "unlock-prompt",
-        currentSessionName: snapshot.presetName,
-      });
+    const phase = mapRustPhase(snapshot.phase);
+
+    if (snapshot.phase === "idle") {
+      // Only update if we were previously active (session ended externally)
+      const current = useSessionStore.getState();
+      if (current.phase !== "idle" && current.phase !== "configuring") {
+        useSessionStore.setState({
+          phase: "idle",
+          isSessionActive: false,
+          currentSessionName: null,
+          timeRemainingMs: 0,
+        });
+      }
+      return;
     }
+
+    useSessionStore.setState({
+      phase,
+      sessionRunId: snapshot.runId,
+      timeRemainingMs: snapshot.timeRemainingMs,
+      currentBlockIndex: snapshot.currentBlockIndex,
+      distractionCount: snapshot.distractionCount,
+      startedAt: snapshot.startedAt,
+      tokenCountdown: snapshot.tokenCountdown,
+      isSessionActive: phase === "active" || phase === "unlock-prompt",
+      currentSessionName: snapshot.presetName,
+    });
   } catch {
     // Not running in Tauri — ignore
   }
-
-  // Fallback: re-sync after 2 seconds in case early ticks were lost
-  setTimeout(() => {
-    const state = useSessionStore.getState();
-    if (state.isSessionActive) {
-      void sessionStatus().then((snapshot) => {
-        if (snapshot.phase !== "idle") {
-          useSessionStore.setState({
-            timeRemainingMs: snapshot.timeRemainingMs,
-            currentBlockIndex: snapshot.currentBlockIndex,
-            distractionCount: snapshot.distractionCount,
-          });
-        }
-      }).catch(() => { /* ignore */ });
-    }
-  }, 2000);
 }
 
 /** Initialize event listeners. Call once at app startup. */
@@ -600,6 +600,15 @@ export function initSessionListeners(): void {
   }).catch(() => {
     // Not running in Tauri (e.g., browser dev mode) — ignore
   });
+
+  // Continuous polling fallback — Tauri events may not arrive reliably,
+  // so poll Rust every second when a session is not idle.
+  setInterval(() => {
+    const state = useSessionStore.getState();
+    if (state.phase !== "idle" && state.phase !== "configuring") {
+      void syncSessionStatus();
+    }
+  }, 1000);
 
   // Hydrate today stats from SQLite
   void loadTodayStats();
