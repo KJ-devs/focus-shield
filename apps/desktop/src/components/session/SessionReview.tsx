@@ -41,18 +41,6 @@ function getScoreBg(score: number): string {
   return "bg-red-50 dark:bg-red-900/20";
 }
 
-/**
- * Calculates mock XP based on session performance.
- * Formula: base XP for duration + bonus for focus score + penalty for distractions.
- */
-function calculateXpGained(review: SessionReviewData): number {
-  const durationMinutes = Math.round(review.actualFocusMs / 60_000);
-  const baseXp = durationMinutes * 2;
-  const scoreBonus = Math.round((review.focusScore / 100) * baseXp * 0.5);
-  const distractionPenalty = review.distractionCount * 3;
-  return Math.max(5, baseXp + scoreBonus - distractionPenalty);
-}
-
 function getPerformanceMessage(score: number, completedNormally: boolean): string {
   if (!completedNormally) {
     return "Not every session goes as planned. What matters is showing up again.";
@@ -184,20 +172,32 @@ function AchievementNotification({ achievement }: { achievement: MockAchievement
 // Main Component
 // ---------------------------------------------------------------------------
 
-/** Mock gamification state (will be replaced by a real gamification store). */
-const MOCK_GAMIFICATION = {
-  level: 4,
-  currentXp: 320,
-  xpToNextLevel: 500,
-  currentStreak: 5,
-};
+function deriveGamification(review: SessionReviewData) {
+  const todayStats = useSessionStore.getState().todayStats;
+  const focusMinutes = Math.round(review.actualFocusMs / 60_000);
+  const lockLevel = useSessionStore.getState().config?.lockLevel ?? 1;
+  const xpGained = Math.round(focusMinutes * lockLevel * 2);
+  const totalXp = Math.round(todayStats.focusMinutes * 2);
+  const xpPerLevel = 500;
+  const level = Math.max(1, Math.floor(totalXp / xpPerLevel) + 1);
+  const currentXpInLevel = totalXp % xpPerLevel;
+
+  return {
+    level,
+    currentXp: currentXpInLevel,
+    xpToNextLevel: xpPerLevel,
+    currentStreak: todayStats.currentStreak,
+    xpGained,
+  };
+}
 
 export function SessionReview({ review, onDismiss }: SessionReviewProps) {
   const navigate = useNavigate();
   const startConfiguring = useSessionStore((s) => s.startConfiguring);
   const [quote] = useState(() => getRandomQuote());
 
-  const xpGained = calculateXpGained(review);
+  const gamification = deriveGamification(review);
+  const xpGained = gamification.xpGained;
   const achievements = getNewAchievements(review);
   const performanceMessage = getPerformanceMessage(
     review.focusScore,
@@ -256,16 +256,16 @@ export function SessionReview({ review, onDismiss }: SessionReviewProps) {
 
         {/* Level progress */}
         <LevelProgress
-          currentXp={MOCK_GAMIFICATION.currentXp + xpGained}
-          xpToNextLevel={MOCK_GAMIFICATION.xpToNextLevel}
-          level={MOCK_GAMIFICATION.level}
+          currentXp={gamification.currentXp + xpGained}
+          xpToNextLevel={gamification.xpToNextLevel}
+          level={gamification.level}
         />
 
         {/* Streak */}
         <div className="flex items-center gap-2">
           <span className="text-xl">&#x1F525;</span>
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {MOCK_GAMIFICATION.currentStreak}-day streak
+            {gamification.currentStreak}-day streak
           </span>
         </div>
 

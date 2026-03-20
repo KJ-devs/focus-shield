@@ -1,4 +1,4 @@
-import { useState, useCallback, createContext, useContext } from "react";
+import { useState, useCallback, useRef, createContext, useContext } from "react";
 import { useBlocklistStore } from "@/stores/blocklist-store";
 import type { BlocklistData } from "@/stores/blocklist-store";
 import { Card } from "@/components/ui/Card";
@@ -72,7 +72,7 @@ interface SuggestionGroup {
 
 const SUGGESTION_GROUPS: SuggestionGroup[] = [
   {
-    label: "Apps populaires",
+    label: "Popular Apps",
     items: [
       { type: "process", value: "discord", display: "Discord" },
       { type: "process", value: "slack", display: "Slack" },
@@ -94,7 +94,7 @@ const SUGGESTION_GROUPS: SuggestionGroup[] = [
     ],
   },
   {
-    label: "Jeux & Launchers",
+    label: "Games & Launchers",
     items: [
       { type: "process", value: "epicgameslauncher", display: "Epic Games" },
       { type: "process", value: "battle.net", display: "Battle.net" },
@@ -107,7 +107,7 @@ const SUGGESTION_GROUPS: SuggestionGroup[] = [
     ],
   },
   {
-    label: "Reseaux sociaux",
+    label: "Social Networks",
     items: [
       { type: "domain", value: "*.facebook.com", display: "Facebook" },
       { type: "domain", value: "*.instagram.com", display: "Instagram" },
@@ -151,7 +151,7 @@ const SUGGESTION_GROUPS: SuggestionGroup[] = [
     ],
   },
   {
-    label: "AI & Outils",
+    label: "AI & Tools",
     items: [
       { type: "domain", value: "*.chatgpt.com", display: "ChatGPT" },
       { type: "domain", value: "*.claude.ai", display: "Claude" },
@@ -297,7 +297,7 @@ function SuggestionChip({ item }: { item: SuggestionEntry }) {
           ? "border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:border-orange-700"
           : "border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:border-blue-700"
       }`}
-      title={isActive ? "Cliquer une carte pour ajouter, ou re-cliquer pour deselectionner" : `Cliquer pour selectionner "${item.display}", puis cliquer une carte`}
+      title={isActive ? "Click a card to add, or click again to deselect" : `Click to select "${item.display}", then click a card`}
     >
       <span className="text-[10px] opacity-60">{isProcess ? "APP" : "WEB"}</span>
       {item.display}
@@ -328,21 +328,21 @@ function SuggestionsSidebar() {
   return (
     <div className="flex h-full flex-col">
       <h3 className="mb-1 text-sm font-semibold text-gray-900 dark:text-white">
-        Ajouter a une liste
+        Add to a list
       </h3>
       <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
         {selected
           ? <>
-              <span className="font-semibold text-focus-500">{selected.display}</span> selectionne — cliquer une carte
+              <span className="font-semibold text-focus-500">{selected.display}</span> selected — click a card
             </>
-          : "Cliquer un element, puis cliquer une carte"}
+          : "Click an item, then click a card"}
       </p>
 
       <input
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Rechercher..."
+        placeholder="Search..."
         className="mb-3 w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:border-focus-500 focus:outline-none focus:ring-1 focus:ring-focus-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-500"
       />
 
@@ -411,6 +411,7 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
   const [editing, setEditing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [justAdded, setJustAdded] = useState<string | null>(null);
+  const dragCounter = useRef(0);
 
   const previewCount = 4;
   const hasMore = blocklist.domains.length > previewCount;
@@ -418,24 +419,37 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
     ? blocklist.domains
     : blocklist.domains.slice(0, previewCount);
 
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes("application/focus-shield-item")) {
+      setDragOver(true);
+    }
+  }, []);
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes("application/focus-shield-item")) {
       e.preventDefault();
       e.stopPropagation();
       e.dataTransfer.dropEffect = "copy";
-      setDragOver(true);
     }
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setDragOver(false);
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setDragOver(false);
+    }
   }, []);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      dragCounter.current = 0;
       setDragOver(false);
       const raw = e.dataTransfer.getData("application/focus-shield-item");
       const item = decodeDragItem(raw);
@@ -478,6 +492,7 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
             : ""
       } ${justAdded ? "ring-2 ring-green-500 dark:ring-green-400" : ""}`}
       onClick={isClickTarget ? handleCardClick : undefined}
+      onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -503,7 +518,7 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
               type="button"
               onClick={(e) => { e.stopPropagation(); setEditing(!editing); }}
               className={`rounded p-1 text-gray-400 hover:text-focus-500 dark:hover:text-focus-400 ${editing ? "text-focus-500 dark:text-focus-400" : ""}`}
-              title={editing ? "Fermer" : "Modifier"}
+              title={editing ? "Close" : "Edit"}
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 {editing ? (
@@ -524,17 +539,17 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
       {/* Feedback banners */}
       {dragOver && (
         <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-focus-400 bg-focus-50 py-2 text-xs font-medium text-focus-600 dark:border-focus-500 dark:bg-focus-900/20 dark:text-focus-400">
-          Deposer ici
+          Drop here
         </div>
       )}
       {isClickTarget && !dragOver && (
         <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-focus-300 bg-focus-50/50 py-1.5 text-xs font-medium text-focus-500 dark:border-focus-600 dark:bg-focus-900/10 dark:text-focus-400">
-          Cliquer pour ajouter "{selected.display}"
+          Click to add "{selected.display}"
         </div>
       )}
       {justAdded && !isClickTarget && !dragOver && (
         <div className="flex items-center justify-center rounded-lg border border-green-300 bg-green-50 py-1.5 text-xs font-medium text-green-600 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400">
-          {justAdded} ajoute !
+          {justAdded} added!
         </div>
       )}
 
@@ -542,7 +557,7 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
       <div>
         {editing && (
           <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-            Sites bloques
+            Blocked Sites
           </span>
         )}
         <div className="flex flex-wrap gap-1">
@@ -588,14 +603,14 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
       {(blocklist.processes.length > 0 || editing) && (
         <div>
           <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-            Apps bloquees
+            Blocked Apps
           </span>
           <div className="flex flex-wrap gap-1">
             {blocklist.processes.map((proc) =>
               editing ? (
                 <RemovableTag
                   key={proc.name}
-                  label={`${proc.name} (${proc.action === "kill" ? "ferme" : "suspend"})`}
+                  label={`${proc.name} (${proc.action === "kill" ? "kill" : "suspend"})`}
                   onRemove={() => removeProcess(blocklist.id, proc.name)}
                 />
               ) : (
@@ -608,14 +623,14 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
                   </svg>
                   {proc.name}
                   <span className="text-orange-400 dark:text-orange-500">
-                    ({proc.action === "kill" ? "ferme" : "suspend"})
+                    ({proc.action === "kill" ? "kill" : "suspend"})
                   </span>
                 </span>
               ),
             )}
             {editing && blocklist.processes.length === 0 && (
               <p className="text-xs text-gray-400 dark:text-gray-500">
-                Aucune app ajoutee.
+                No apps added.
               </p>
             )}
           </div>
@@ -655,19 +670,32 @@ function CustomBlocklistCard({
   const { selected, setSelected } = useSelectedItem();
   const [dragOver, setDragOver] = useState(false);
   const [justAdded, setJustAdded] = useState<string | null>(null);
+  const dragCounter = useRef(0);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes("application/focus-shield-item")) {
+      setDragOver(true);
+    }
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes("application/focus-shield-item")) {
       e.preventDefault();
       e.stopPropagation();
       e.dataTransfer.dropEffect = "copy";
-      setDragOver(true);
     }
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setDragOver(false);
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setDragOver(false);
+    }
   }, []);
 
   const addItem = useCallback(
@@ -687,6 +715,7 @@ function CustomBlocklistCard({
     (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      dragCounter.current = 0;
       setDragOver(false);
       const raw = e.dataTransfer.getData("application/focus-shield-item");
       const item = decodeDragItem(raw);
@@ -714,6 +743,7 @@ function CustomBlocklistCard({
             : ""
       } ${justAdded ? "ring-2 ring-green-500 dark:ring-green-400" : ""}`}
       onClick={isClickTarget ? handleCardClick : undefined}
+      onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -769,12 +799,12 @@ function CustomBlocklistCard({
       {/* Feedback banners */}
       {isClickTarget && (
         <div className="mt-2 flex items-center justify-center rounded-lg border-2 border-dashed border-focus-300 bg-focus-50/50 py-1.5 text-xs font-medium text-focus-500 dark:border-focus-600 dark:bg-focus-900/10 dark:text-focus-400">
-          Cliquer pour ajouter "{selected.display}"
+          Click to add "{selected.display}"
         </div>
       )}
       {justAdded && !isClickTarget && (
         <div className="mt-2 flex items-center justify-center rounded-lg border border-green-300 bg-green-50 py-1.5 text-xs font-medium text-green-600 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400">
-          {justAdded} ajoute !
+          {justAdded} added!
         </div>
       )}
 
@@ -901,6 +931,7 @@ export function BlocklistsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selected, setSelected] = useState<DragItem | null>(null);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   const [showHidden, setShowHidden] = useState(false);
   const builtInLists = blocklists.filter((b) => b.isBuiltIn && !b.hidden);
@@ -921,8 +952,8 @@ export function BlocklistsPage() {
               </h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {selected
-                  ? <><span className="font-semibold text-focus-500">{selected.display}</span> selectionne — cliquer une carte pour l'ajouter</>
-                  : "Selectionnez un element a droite, puis cliquez sur une carte."}
+                  ? <><span className="font-semibold text-focus-500">{selected.display}</span> selected — click a card to add it</>
+                  : "Select an item on the right, then click a card."}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -933,10 +964,20 @@ export function BlocklistsPage() {
                   onClick={() => setSelected(null)}
                   className="text-red-500"
                 >
-                  Annuler
+                  Cancel
                 </Button>
               )}
               <Badge variant="info">{enabledCount} active</Badge>
+              <button
+                type="button"
+                onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+                className="rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-100 lg:hidden dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                title="Toggle suggestions panel"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
             </div>
           </div>
 
@@ -1027,7 +1068,29 @@ export function BlocklistsPage() {
           </section>
         </div>
 
-        {/* Right: suggestions sidebar */}
+        {/* Mobile suggestions overlay */}
+        {showMobileSidebar && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div className="absolute inset-0 bg-black/30" onClick={() => setShowMobileSidebar(false)} />
+            <aside className="absolute right-0 top-0 h-full w-80 overflow-y-auto border-l border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Suggestions</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowMobileSidebar(false)}
+                  className="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <SuggestionsSidebar />
+            </aside>
+          </div>
+        )}
+
+        {/* Right: suggestions sidebar (desktop) */}
         <aside className="sticky top-4 hidden h-[calc(100vh-6rem)] w-72 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm lg:block dark:border-gray-700 dark:bg-gray-800">
           <SuggestionsSidebar />
         </aside>

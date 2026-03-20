@@ -9,6 +9,7 @@ import { UpdateChecker } from "@/components/settings/UpdateChecker";
 import { ExtensionInstall } from "@/components/settings/ExtensionInstall";
 import { useThemeStore } from "@/stores/theme-store";
 import { useSettingsStore } from "@/stores/settings-store";
+import { toastInfo } from "@/stores/notification-store";
 
 // ---------------------------------------------------------------------------
 // Section divider helper
@@ -48,7 +49,7 @@ export function SettingsPage() {
 
   const handleExportData = () => {
     // Placeholder -- will be wired to storage export in a future US
-    window.alert("Export feature coming soon. Your data will be available as CSV or JSON.");
+    toastInfo("Export feature coming soon. Your data will be available as CSV or JSON.");
   };
 
   return (
@@ -79,8 +80,8 @@ export function SettingsPage() {
         <Card>
           <SectionHeading title="Lock Level" />
           <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-            Choose the default friction level for session unlocking. Higher
-            levels make it harder to quit a focus session impulsively.
+            How hard it is to quit a session early. Higher levels make it
+            harder to stop a focus session impulsively.
           </p>
           <LockLevelSelector value={lockLevel} onChange={setLockLevel} />
         </Card>

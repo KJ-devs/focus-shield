@@ -114,9 +114,12 @@ function ConfigureStep() {
 
       {/* Lock level selector */}
       <div>
-        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+        <h2 className="mb-1 text-lg font-semibold text-gray-900 dark:text-white">
           Lock Level
         </h2>
+        <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+          How hard it is to quit the session early
+        </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
           {LOCK_LEVELS.map((level) => {
             const config = TOKEN_CONFIG[level];
@@ -217,13 +220,16 @@ function TokenDisplayStep() {
         <div className="flex items-center gap-2">
           <span className="text-3xl">{"\uD83D\uDD11"}</span>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Your Unlock Token
+            Your Unlock Code
           </h2>
         </div>
 
         <div className="rounded-lg bg-yellow-50 px-6 py-3 dark:bg-yellow-900/20">
           <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
-            Write this down! It will disappear in{" "}
+            This is your unlock code. Write it down &mdash; paste is disabled.
+          </p>
+          <p className="mt-1 text-sm font-medium text-yellow-700 dark:text-yellow-400">
+            If you lose it, the session cannot be stopped early. Disappears in{" "}
             <span className="font-bold">{tokenCountdown}</span> seconds.
           </p>
         </div>

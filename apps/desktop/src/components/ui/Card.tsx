@@ -4,6 +4,7 @@ interface CardProps {
   children: ReactNode;
   className?: string;
   onClick?: MouseEventHandler<HTMLDivElement>;
+  onDragEnter?: DragEventHandler<HTMLDivElement>;
   onDragOver?: DragEventHandler<HTMLDivElement>;
   onDragLeave?: DragEventHandler<HTMLDivElement>;
   onDrop?: DragEventHandler<HTMLDivElement>;
@@ -14,6 +15,7 @@ export function Card({
   children,
   className = "",
   onClick,
+  onDragEnter,
   onDragOver,
   onDragLeave,
   onDrop,
@@ -24,6 +26,7 @@ export function Card({
       data-testid={testId}
       className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md border border-gray-200 dark:border-gray-700 p-6 transition-shadow duration-200 ${className}`}
       onClick={onClick}
+      onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}

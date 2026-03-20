@@ -9,6 +9,13 @@ import {
   storageGetRecentSessions,
   type RecentSession as RecentSessionData,
 } from "@/tauri/storage";
+import { PRESETS } from "@/data/presets";
+
+const PRESET_NAME_MAP = new Map(PRESETS.map((p) => [p.id, p.name]));
+
+function getSessionDisplayName(sessionId: string): string {
+  return PRESET_NAME_MAP.get(sessionId) ?? sessionId;
+}
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -252,7 +259,7 @@ function RecentActivitySection() {
           >
             <div className="flex items-center gap-3">
               <span className="text-gray-900 dark:text-white font-medium">
-                {session.sessionId}
+                {getSessionDisplayName(session.sessionId)}
               </span>
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 {formatMinutesToDuration(session.totalFocusMinutes)}

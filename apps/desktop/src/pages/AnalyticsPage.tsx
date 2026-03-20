@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Heatmap } from "@/components/analytics/Heatmap";
 import { TrendChart } from "@/components/analytics/TrendChart";
@@ -133,12 +135,8 @@ function statsToTimeline(todayStats: DailyStatsRecord | undefined): TimelineEntr
 }
 
 function statsToPeakHours(_stats: DailyStatsRecord[]): PeakHourPoint[] {
-  // Without hourly granularity in the DB, return empty for now
-  const data: PeakHourPoint[] = [];
-  for (let h = 0; h < 24; h++) {
-    data.push({ hour: h, minutes: 0 });
-  }
-  return data;
+  // Without hourly granularity in the DB, return empty
+  return [];
 }
 
 export function AnalyticsPage() {
@@ -198,11 +196,15 @@ export function AnalyticsPage() {
 
   const topDistractor = distractionData[0]?.category ?? "None";
 
+  const hasPeakData = peakHoursData.length > 0 && peakHoursData.some((p) => p.minutes > 0);
+
   // Peak hour from data
   const peak = peakHoursData.reduce(
     (best, entry) => (entry.minutes > best.minutes ? entry : best),
     peakHoursData[0] ?? { hour: 0, minutes: 0 },
   );
+
+  const hasAnyStats = stats.length > 0 && totalFocus > 0;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -227,6 +229,21 @@ export function AnalyticsPage() {
           ))}
         </div>
       </div>
+
+      {!hasAnyStats && (
+        <Card className="flex flex-col items-center gap-4 py-12">
+          <span className="text-5xl">&#x1F4CA;</span>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            No analytics yet
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400">
+            Start your first session to see analytics here.
+          </p>
+          <Link to="/launch">
+            <Button variant="primary">Start a Session</Button>
+          </Link>
+        </Card>
+      )}
 
       <Card>
         <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
@@ -274,7 +291,15 @@ export function AnalyticsPage() {
           <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
             Peak Hours
           </h2>
-          <PeakHours data={peakHoursData} />
+          {hasPeakData ? (
+            <PeakHours data={peakHoursData} />
+          ) : (
+            <div className="flex h-64 items-center justify-center">
+              <p className="text-sm text-gray-400 dark:text-gray-500">
+                Complete sessions to see your peak hours.
+              </p>
+            </div>
+          )}
         </Card>
 
         <Card>

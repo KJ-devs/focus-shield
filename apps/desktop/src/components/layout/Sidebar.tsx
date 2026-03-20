@@ -52,36 +52,6 @@ function IconUser() {
   );
 }
 
-function IconUsers() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="7.5" cy="7" r="3" />
-      <circle cx="14" cy="7.5" r="2.5" />
-      <path d="M1.5 17c0-3 2.5-5.5 6-5.5s6 2.5 6 5.5" />
-      <path d="M13 11.5c2 0 4.5 1.5 4.5 4" />
-    </svg>
-  );
-}
-
-function IconTrophy() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 3h8v5a4 4 0 01-8 0V3z" />
-      <path d="M6 5H4a2 2 0 000 4h2M14 5h2a2 2 0 010 4h-2" />
-      <path d="M10 12v3M7 17h6" />
-    </svg>
-  );
-}
-
-function IconVideo() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="5" width="11" height="10" rx="1.5" />
-      <path d="M13 8.5l5-2.5v8l-5-2.5" />
-    </svg>
-  );
-}
-
 function IconSettings() {
   return (
     <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -138,9 +108,6 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/blocklists", label: "Blocklists", icon: <IconShieldNav /> },
   { to: "/analytics", label: "Analytics", icon: <IconChart /> },
   { to: "/profiles", label: "Profiles", icon: <IconUser /> },
-  { to: "/buddy", label: "Buddies", icon: <IconUsers /> },
-  { to: "/challenges", label: "Challenges", icon: <IconTrophy /> },
-  { to: "/coworking", label: "Coworking", icon: <IconVideo /> },
   { to: "/settings", label: "Settings", icon: <IconSettings /> },
 ];
 
@@ -224,9 +191,9 @@ function DaemonStatusBadge() {
   const { daemon, extension } = useProtectionStatus();
 
   const daemonConfig = {
-    checking: { color: "bg-gray-400", label: "Daemon: checking..." },
-    connected: { color: "bg-emerald-500", label: "Daemon: connected" },
-    disconnected: { color: "bg-red-500", label: "Daemon: offline" },
+    checking: { color: "bg-gray-400", label: "System protection: checking..." },
+    connected: { color: "bg-emerald-500", label: "System protection: active" },
+    disconnected: { color: "bg-red-500", label: "System protection: inactive" },
   }[daemon];
 
   const extensionConfig = {

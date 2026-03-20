@@ -4,6 +4,7 @@ import { daemonStartBlocking, daemonStopBlocking } from "@/tauri/daemon";
 import { useBlocklistStore } from "@/stores/blocklist-store";
 import type { DaemonDomainRule, DaemonProcessRule } from "@focus-shield/shared-types";
 import { toastWarning, toastInfo, toastError } from "@/stores/notification-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import {
   sessionStart,
   sessionStop,
@@ -396,10 +397,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   startQuickSession: async (name: string, durationMs: number) => {
+    const settingsLockLevel = useSettingsStore.getState().lockLevel;
     const config: SessionConfig = {
       presetId: "quick",
       presetName: name,
-      lockLevel: 1,
+      lockLevel: settingsLockLevel ?? 1,
       durationMs,
       blocks: [{ type: "focus", duration: durationMs / 60000, blockingEnabled: true }],
     };
