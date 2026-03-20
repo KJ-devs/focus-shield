@@ -140,6 +140,20 @@ export interface SessionState {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Extract a human-readable message from Tauri IPC errors or any thrown value. */
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "object" && err !== null) {
+    const obj = err as Record<string, unknown>;
+    if (typeof obj.message === "string") return obj.message;
+    if (typeof obj.code === "string" && typeof obj.message === "string") {
+      return `[${obj.code}] ${obj.message}`;
+    }
+  }
+  if (typeof err === "string") return err;
+  return "An unexpected error occurred";
+}
+
 function getEnabledBlockingRules(): {
   domains: DaemonDomainRule[];
   processes: DaemonProcessRule[];
@@ -283,7 +297,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         void syncSessionStatus();
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = extractErrorMessage(err);
       set({ lastError: message });
       toastError(message);
     }
@@ -294,7 +308,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       await sessionRequestUnlock();
       set({ phase: "unlock-prompt" });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = extractErrorMessage(err);
       set({ lastError: message });
       toastError(message);
     }
@@ -305,7 +319,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       await sessionCancelUnlock();
       set({ phase: "active" });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = extractErrorMessage(err);
       set({ lastError: message });
       toastError(message);
     }
@@ -321,7 +335,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         await sessionRequestUnlock();
         set({ phase: "unlock-prompt" });
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = extractErrorMessage(err);
         set({ lastError: message });
       }
       return;
@@ -348,7 +362,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         void persistSessionRun(state.sessionRunId, state, review);
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = extractErrorMessage(err);
       set({ lastError: message });
       toastError(message);
     }
@@ -420,7 +434,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       // Sync state from Rust to guard against missed early ticks
       void syncSessionStatus();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = extractErrorMessage(err);
       set({ lastError: message });
       toastError(message);
     }
