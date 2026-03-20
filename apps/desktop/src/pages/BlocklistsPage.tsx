@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, createContext, useContext } from "react";
 import { useBlocklistStore } from "@/stores/blocklist-store";
 import type { BlocklistData } from "@/stores/blocklist-store";
 import { Card } from "@/components/ui/Card";
@@ -14,6 +14,7 @@ import { getBlocklistEmoji } from "@/data/blocklist-icons";
 interface DragItem {
   type: "domain" | "process";
   value: string;
+  display: string;
 }
 
 function encodeDragItem(item: DragItem): string {
@@ -37,12 +38,36 @@ function decodeDragItem(data: string): DragItem | null {
 }
 
 // ---------------------------------------------------------------------------
+// Selected item context (click-to-add flow)
+// ---------------------------------------------------------------------------
+
+interface SelectedItemCtx {
+  selected: DragItem | null;
+  setSelected: (item: DragItem | null) => void;
+}
+
+const SelectedItemContext = createContext<SelectedItemCtx>({
+  selected: null,
+  setSelected: () => {},
+});
+
+function useSelectedItem() {
+  return useContext(SelectedItemContext);
+}
+
+// ---------------------------------------------------------------------------
 // Suggestions catalog
 // ---------------------------------------------------------------------------
 
+interface SuggestionEntry {
+  type: "domain" | "process";
+  value: string;
+  display: string;
+}
+
 interface SuggestionGroup {
   label: string;
-  items: { type: "domain" | "process"; value: string; display: string }[];
+  items: SuggestionEntry[];
 }
 
 const SUGGESTION_GROUPS: SuggestionGroup[] = [
@@ -228,38 +253,55 @@ function RemovableTag({
 }
 
 // ---------------------------------------------------------------------------
-// Draggable suggestion chip
+// Suggestion chip (draggable + clickable)
 // ---------------------------------------------------------------------------
 
-function SuggestionChip({
-  item,
-}: {
-  item: { type: "domain" | "process"; value: string; display: string };
-}) {
+function SuggestionChip({ item }: { item: SuggestionEntry }) {
+  const { selected, setSelected } = useSelectedItem();
+
+  const isActive =
+    selected !== null &&
+    selected.type === item.type &&
+    selected.value === item.value;
+
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData(
       "application/focus-shield-item",
-      encodeDragItem({ type: item.type, value: item.value }),
+      encodeDragItem(item),
     );
     e.dataTransfer.effectAllowed = "copy";
+  };
+
+  const handleClick = () => {
+    if (isActive) {
+      setSelected(null);
+    } else {
+      setSelected({ type: item.type, value: item.value, display: item.display });
+    }
   };
 
   const isProcess = item.type === "process";
 
   return (
-    <span
+    <button
+      type="button"
       draggable
       onDragStart={handleDragStart}
-      className={`inline-flex cursor-grab items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium select-none active:cursor-grabbing ${
+      onClick={handleClick}
+      className={`inline-flex cursor-grab items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium select-none transition-all active:cursor-grabbing ${
+        isActive
+          ? "ring-2 ring-focus-500 ring-offset-1 dark:ring-offset-gray-800"
+          : ""
+      } ${
         isProcess
           ? "border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:border-orange-700"
           : "border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:border-blue-700"
       }`}
-      title={`Glisser "${item.display}" vers une liste`}
+      title={isActive ? "Cliquer une carte pour ajouter, ou re-cliquer pour deselectionner" : `Cliquer pour selectionner "${item.display}", puis cliquer une carte`}
     >
-      <span className="text-[10px]">{isProcess ? "APP" : "WEB"}</span>
+      <span className="text-[10px] opacity-60">{isProcess ? "APP" : "WEB"}</span>
       {item.display}
-    </span>
+    </button>
   );
 }
 
@@ -268,6 +310,7 @@ function SuggestionChip({
 // ---------------------------------------------------------------------------
 
 function SuggestionsSidebar() {
+  const { selected } = useSelectedItem();
   const [search, setSearch] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
@@ -284,9 +327,16 @@ function SuggestionsSidebar() {
 
   return (
     <div className="flex h-full flex-col">
-      <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
-        Glisser vers une liste
+      <h3 className="mb-1 text-sm font-semibold text-gray-900 dark:text-white">
+        Ajouter a une liste
       </h3>
+      <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
+        {selected
+          ? <>
+              <span className="font-semibold text-focus-500">{selected.display}</span> selectionne — cliquer une carte
+            </>
+          : "Cliquer un element, puis cliquer une carte"}
+      </p>
 
       <input
         type="text"
@@ -347,7 +397,7 @@ function SuggestionsSidebar() {
 }
 
 // ---------------------------------------------------------------------------
-// Built-in blocklist card (compact grid card) — drop target
+// Built-in blocklist card — drop target + click target
 // ---------------------------------------------------------------------------
 
 function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
@@ -356,9 +406,11 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
   const removeDomain = useBlocklistStore((s) => s.removeDomain);
   const addProcess = useBlocklistStore((s) => s.addProcess);
   const removeProcess = useBlocklistStore((s) => s.removeProcess);
+  const { selected, setSelected } = useSelectedItem();
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
 
   const previewCount = 4;
   const hasMore = blocklist.domains.length > previewCount;
@@ -369,39 +421,63 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes("application/focus-shield-item")) {
       e.preventDefault();
+      e.stopPropagation();
       e.dataTransfer.dropEffect = "copy";
       setDragOver(true);
     }
   }, []);
 
-  const handleDragLeave = useCallback(() => {
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
     setDragOver(false);
   }, []);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       setDragOver(false);
       const raw = e.dataTransfer.getData("application/focus-shield-item");
       const item = decodeDragItem(raw);
       if (!item) return;
+      addItem(item);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [blocklist.id],
+  );
 
+  const addItem = useCallback(
+    (item: DragItem) => {
       if (item.type === "domain") {
         addDomain(blocklist.id, item.value);
       } else {
         addProcess(blocklist.id, item.value);
       }
+      setJustAdded(item.display || item.value);
+      setTimeout(() => setJustAdded(null), 1500);
     },
     [blocklist.id, addDomain, addProcess],
   );
+
+  // Click on card when an item is selected → add it
+  const handleCardClick = useCallback(() => {
+    if (!selected) return;
+    addItem(selected);
+    setSelected(null);
+  }, [selected, addItem, setSelected]);
+
+  const isClickTarget = selected !== null;
 
   return (
     <Card
       className={`flex flex-col gap-3 transition-all ${
         dragOver
           ? "ring-2 ring-focus-500 ring-offset-2 dark:ring-offset-gray-900"
-          : ""
-      }`}
+          : isClickTarget
+            ? "cursor-pointer ring-1 ring-focus-300 hover:ring-2 hover:ring-focus-500 dark:ring-focus-700 dark:hover:ring-focus-500"
+            : ""
+      } ${justAdded ? "ring-2 ring-green-500 dark:ring-green-400" : ""}`}
+      onClick={isClickTarget ? handleCardClick : undefined}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -422,20 +498,22 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setEditing(!editing)}
-            className={`rounded p-1 text-gray-400 hover:text-focus-500 dark:hover:text-focus-400 ${editing ? "text-focus-500 dark:text-focus-400" : ""}`}
-            title={editing ? "Fermer" : "Modifier"}
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              {editing ? (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-              )}
-            </svg>
-          </button>
+          {!isClickTarget && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setEditing(!editing); }}
+              className={`rounded p-1 text-gray-400 hover:text-focus-500 dark:hover:text-focus-400 ${editing ? "text-focus-500 dark:text-focus-400" : ""}`}
+              title={editing ? "Fermer" : "Modifier"}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                {editing ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                )}
+              </svg>
+            </button>
+          )}
           <Toggle
             checked={blocklist.enabled}
             onChange={() => toggleBlocklist(blocklist.id)}
@@ -443,10 +521,20 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
         </div>
       </div>
 
-      {/* Drop hint */}
+      {/* Feedback banners */}
       {dragOver && (
         <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-focus-400 bg-focus-50 py-2 text-xs font-medium text-focus-600 dark:border-focus-500 dark:bg-focus-900/20 dark:text-focus-400">
           Deposer ici
+        </div>
+      )}
+      {isClickTarget && !dragOver && (
+        <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-focus-300 bg-focus-50/50 py-1.5 text-xs font-medium text-focus-500 dark:border-focus-600 dark:bg-focus-900/10 dark:text-focus-400">
+          Cliquer pour ajouter "{selected.display}"
+        </div>
+      )}
+      {justAdded && !isClickTarget && !dragOver && (
+        <div className="flex items-center justify-center rounded-lg border border-green-300 bg-green-50 py-1.5 text-xs font-medium text-green-600 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400">
+          {justAdded} ajoute !
         </div>
       )}
 
@@ -477,7 +565,7 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
           {hasMore && !editing && (
             <button
               type="button"
-              onClick={() => setExpanded(!expanded)}
+              onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
               className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-focus-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-focus-400 dark:hover:bg-gray-600"
             >
               {expanded
@@ -546,7 +634,7 @@ function BuiltInBlocklistCard({ blocklist }: { blocklist: BlocklistData }) {
 }
 
 // ---------------------------------------------------------------------------
-// Custom blocklist expandable card — also a drop target
+// Custom blocklist expandable card — also a drop/click target
 // ---------------------------------------------------------------------------
 
 function CustomBlocklistCard({
@@ -564,44 +652,68 @@ function CustomBlocklistCard({
   const removeDomain = useBlocklistStore((s) => s.removeDomain);
   const addProcess = useBlocklistStore((s) => s.addProcess);
   const removeProcess = useBlocklistStore((s) => s.removeProcess);
+  const { selected, setSelected } = useSelectedItem();
   const [dragOver, setDragOver] = useState(false);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes("application/focus-shield-item")) {
       e.preventDefault();
+      e.stopPropagation();
       e.dataTransfer.dropEffect = "copy";
       setDragOver(true);
     }
   }, []);
 
-  const handleDragLeave = useCallback(() => {
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
     setDragOver(false);
   }, []);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragOver(false);
-      const raw = e.dataTransfer.getData("application/focus-shield-item");
-      const item = decodeDragItem(raw);
-      if (!item) return;
-
+  const addItem = useCallback(
+    (item: DragItem) => {
       if (item.type === "domain") {
         addDomain(blocklist.id, item.value);
       } else {
         addProcess(blocklist.id, item.value);
       }
+      setJustAdded(item.display || item.value);
+      setTimeout(() => setJustAdded(null), 1500);
     },
     [blocklist.id, addDomain, addProcess],
   );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragOver(false);
+      const raw = e.dataTransfer.getData("application/focus-shield-item");
+      const item = decodeDragItem(raw);
+      if (!item) return;
+      addItem(item);
+    },
+    [addItem],
+  );
+
+  const handleCardClick = useCallback(() => {
+    if (!selected) return;
+    addItem(selected);
+    setSelected(null);
+  }, [selected, addItem, setSelected]);
+
+  const isClickTarget = selected !== null;
 
   return (
     <Card
       className={`transition-all ${
         dragOver
           ? "ring-2 ring-focus-500 ring-offset-2 dark:ring-offset-gray-900"
-          : ""
-      }`}
+          : isClickTarget
+            ? "cursor-pointer ring-1 ring-focus-300 hover:ring-2 hover:ring-focus-500 dark:ring-focus-700 dark:hover:ring-focus-500"
+            : ""
+      } ${justAdded ? "ring-2 ring-green-500 dark:ring-green-400" : ""}`}
+      onClick={isClickTarget ? handleCardClick : undefined}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -610,7 +722,7 @@ function CustomBlocklistCard({
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={onToggleExpand}
+          onClick={isClickTarget ? undefined : onToggleExpand}
           className="flex flex-1 items-center gap-3 text-left"
         >
           <svg
@@ -646,7 +758,7 @@ function CustomBlocklistCard({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => deleteBlocklist(blocklist.id)}
+            onClick={(e: React.MouseEvent) => { e.stopPropagation(); deleteBlocklist(blocklist.id); }}
             className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
           >
             Delete
@@ -654,10 +766,15 @@ function CustomBlocklistCard({
         </div>
       </div>
 
-      {/* Drop hint */}
-      {dragOver && (
-        <div className="mt-3 flex items-center justify-center rounded-lg border-2 border-dashed border-focus-400 bg-focus-50 py-2 text-xs font-medium text-focus-600 dark:border-focus-500 dark:bg-focus-900/20 dark:text-focus-400">
-          Deposer ici
+      {/* Feedback banners */}
+      {isClickTarget && (
+        <div className="mt-2 flex items-center justify-center rounded-lg border-2 border-dashed border-focus-300 bg-focus-50/50 py-1.5 text-xs font-medium text-focus-500 dark:border-focus-600 dark:bg-focus-900/10 dark:text-focus-400">
+          Cliquer pour ajouter "{selected.display}"
+        </div>
+      )}
+      {justAdded && !isClickTarget && (
+        <div className="mt-2 flex items-center justify-center rounded-lg border border-green-300 bg-green-50 py-1.5 text-xs font-medium text-green-600 dark:border-green-700 dark:bg-green-900/20 dark:text-green-400">
+          {justAdded} ajoute !
         </div>
       )}
 
@@ -783,6 +900,7 @@ export function BlocklistsPage() {
   const blocklists = useBlocklistStore((s) => s.blocklists);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<DragItem | null>(null);
 
   const [showHidden, setShowHidden] = useState(false);
   const builtInLists = blocklists.filter((b) => b.isBuiltIn && !b.hidden);
@@ -792,112 +910,128 @@ export function BlocklistsPage() {
   const enabledCount = blocklists.filter((b) => b.enabled).length;
 
   return (
-    <div className="flex gap-6">
-      {/* Left: blocklists */}
-      <div className="min-w-0 flex-1">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Blocklists
-            </h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Glissez des elements depuis le panneau de droite vers une liste.
-            </p>
-          </div>
-          <Badge variant="info">{enabledCount} active</Badge>
-        </div>
-
-        {/* Built-in blocklists */}
-        <section className="mb-8">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-            Built-in Lists
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {builtInLists.map((blocklist) => (
-              <BuiltInBlocklistCard key={blocklist.id} blocklist={blocklist} />
-            ))}
-          </div>
-
-          {hiddenLists.length > 0 && (
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={() => setShowHidden(!showHidden)}
-                className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-              >
-                <svg
-                  className={`h-4 w-4 transition-transform ${showHidden ? "rotate-90" : ""}`}
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
+    <SelectedItemContext.Provider value={{ selected, setSelected }}>
+      <div className="flex gap-6">
+        {/* Left: blocklists */}
+        <div className="min-w-0 flex-1">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Blocklists
+              </h1>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {selected
+                  ? <><span className="font-semibold text-focus-500">{selected.display}</span> selectionne — cliquer une carte pour l'ajouter</>
+                  : "Selectionnez un element a droite, puis cliquez sur une carte."}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {selected && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelected(null)}
+                  className="text-red-500"
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                {showHidden ? "Hide" : "Show"} sensitive lists ({hiddenLists.length})
-              </button>
-              {showHidden && (
-                <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {hiddenLists.map((blocklist) => (
-                    <BuiltInBlocklistCard key={blocklist.id} blocklist={blocklist} />
-                  ))}
-                </div>
+                  Annuler
+                </Button>
+              )}
+              <Badge variant="info">{enabledCount} active</Badge>
+            </div>
+          </div>
+
+          {/* Built-in blocklists */}
+          <section className="mb-8">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+              Built-in Lists
+            </h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {builtInLists.map((blocklist) => (
+                <BuiltInBlocklistCard key={blocklist.id} blocklist={blocklist} />
+              ))}
+            </div>
+
+            {hiddenLists.length > 0 && (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowHidden(!showHidden)}
+                  className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                >
+                  <svg
+                    className={`h-4 w-4 transition-transform ${showHidden ? "rotate-90" : ""}`}
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {showHidden ? "Hide" : "Show"} sensitive lists ({hiddenLists.length})
+                </button>
+                {showHidden && (
+                  <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {hiddenLists.map((blocklist) => (
+                      <BuiltInBlocklistCard key={blocklist.id} blocklist={blocklist} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* Custom blocklists */}
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Custom Lists
+              </h2>
+              {!showCreateForm && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setShowCreateForm(true)}
+                >
+                  + Create Custom List
+                </Button>
               )}
             </div>
-          )}
-        </section>
 
-        {/* Custom blocklists */}
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Custom Lists
-            </h2>
-            {!showCreateForm && (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setShowCreateForm(true)}
-              >
-                + Create Custom List
-              </Button>
-            )}
-          </div>
+            <div className="space-y-4">
+              {showCreateForm && (
+                <CreateBlocklistForm onClose={() => setShowCreateForm(false)} />
+              )}
 
-          <div className="space-y-4">
-            {showCreateForm && (
-              <CreateBlocklistForm onClose={() => setShowCreateForm(false)} />
-            )}
+              {customLists.map((blocklist) => (
+                <CustomBlocklistCard
+                  key={blocklist.id}
+                  blocklist={blocklist}
+                  isExpanded={expandedId === blocklist.id}
+                  onToggleExpand={() =>
+                    setExpandedId(expandedId === blocklist.id ? null : blocklist.id)
+                  }
+                />
+              ))}
 
-            {customLists.map((blocklist) => (
-              <CustomBlocklistCard
-                key={blocklist.id}
-                blocklist={blocklist}
-                isExpanded={expandedId === blocklist.id}
-                onToggleExpand={() =>
-                  setExpandedId(expandedId === blocklist.id ? null : blocklist.id)
-                }
-              />
-            ))}
+              {customLists.length === 0 && !showCreateForm && (
+                <Card className="flex flex-col items-center gap-3 py-8">
+                  <span className="text-3xl">{"\uD83D\uDD27"}</span>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No custom blocklists yet. Create one to tailor your blocking rules.
+                  </p>
+                </Card>
+              )}
+            </div>
+          </section>
+        </div>
 
-            {customLists.length === 0 && !showCreateForm && (
-              <Card className="flex flex-col items-center gap-3 py-8">
-                <span className="text-3xl">{"\uD83D\uDD27"}</span>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  No custom blocklists yet. Create one to tailor your blocking rules.
-                </p>
-              </Card>
-            )}
-          </div>
-        </section>
+        {/* Right: suggestions sidebar */}
+        <aside className="sticky top-4 hidden h-[calc(100vh-6rem)] w-72 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm lg:block dark:border-gray-700 dark:bg-gray-800">
+          <SuggestionsSidebar />
+        </aside>
       </div>
-
-      {/* Right: suggestions sidebar */}
-      <aside className="sticky top-4 hidden h-[calc(100vh-6rem)] w-72 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm lg:block dark:border-gray-700 dark:bg-gray-800">
-        <SuggestionsSidebar />
-      </aside>
-    </div>
+    </SelectedItemContext.Provider>
   );
 }
