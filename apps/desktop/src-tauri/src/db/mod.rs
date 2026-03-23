@@ -99,6 +99,59 @@ const MIGRATIONS: &[(&str, &str)] = &[
         CREATE INDEX IF NOT EXISTS idx_daily_stats_profile_id ON daily_stats(profile_id);
         CREATE INDEX IF NOT EXISTS idx_sessions_profile_id ON sessions(profile_id);
     "#),
+    ("knowledge_tables", r#"
+        CREATE TABLE IF NOT EXISTS knowledge_folders (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            parent_id TEXT,
+            icon TEXT NOT NULL DEFAULT '',
+            color TEXT NOT NULL DEFAULT '#3b82f6',
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS knowledge_documents (
+            id TEXT PRIMARY KEY,
+            folder_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL DEFAULT '',
+            tags TEXT NOT NULL DEFAULT '[]',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS flashcards (
+            id TEXT PRIMARY KEY,
+            document_id TEXT,
+            folder_id TEXT NOT NULL,
+            front TEXT NOT NULL,
+            back TEXT NOT NULL,
+            card_type TEXT NOT NULL DEFAULT 'basic',
+            ease REAL NOT NULL DEFAULT 2.5,
+            interval INTEGER NOT NULL DEFAULT 0,
+            repetitions INTEGER NOT NULL DEFAULT 0,
+            next_review_at TEXT NOT NULL,
+            last_reviewed_at TEXT,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS review_sessions (
+            id TEXT PRIMARY KEY,
+            folder_id TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            ended_at TEXT,
+            cards_reviewed INTEGER NOT NULL DEFAULT 0,
+            correct_count INTEGER NOT NULL DEFAULT 0,
+            wrong_count INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_knowledge_docs_folder ON knowledge_documents(folder_id);
+        CREATE INDEX IF NOT EXISTS idx_flashcards_folder ON flashcards(folder_id);
+        CREATE INDEX IF NOT EXISTS idx_flashcards_document ON flashcards(document_id);
+        CREATE INDEX IF NOT EXISTS idx_flashcards_next_review ON flashcards(next_review_at);
+        CREATE INDEX IF NOT EXISTS idx_review_sessions_folder ON review_sessions(folder_id);
+    "#),
     ("gamification_tables", r#"
         CREATE TABLE IF NOT EXISTS user_progress (
             profile_id TEXT PRIMARY KEY,
@@ -696,11 +749,347 @@ impl StorageManager {
 
         Ok(streak)
     }
+
+    // -----------------------------------------------------------------------
+    // Knowledge — Folders
+    // -----------------------------------------------------------------------
+
+    pub fn create_knowledge_folder(&self, folder: &KnowledgeFolderRecord) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        conn.execute(
+            "INSERT INTO knowledge_folders (id, name, parent_id, icon, color, sort_order, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![folder.id, folder.name, folder.parent_id, folder.icon, folder.color, folder.sort_order, folder.created_at, folder.updated_at],
+        ).map_err(|e| format!("Failed to create folder: {}", e))?;
+        Ok(())
+    }
+
+    pub fn list_knowledge_folders(&self) -> Result<Vec<KnowledgeFolderRecord>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, name, parent_id, icon, color, sort_order, created_at, updated_at
+             FROM knowledge_folders ORDER BY sort_order ASC, name ASC"
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok(KnowledgeFolderRecord {
+                id: row.get(0)?, name: row.get(1)?, parent_id: row.get(2)?,
+                icon: row.get(3)?, color: row.get(4)?, sort_order: row.get(5)?,
+                created_at: row.get(6)?, updated_at: row.get(7)?,
+            })
+        }).map_err(|e| format!("Query failed: {}", e))?;
+
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("Row error: {}", e))
+    }
+
+    pub fn update_knowledge_folder(&self, id: &str, name: &str, icon: &str, color: &str, sort_order: i64) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE knowledge_folders SET name = ?2, icon = ?3, color = ?4, sort_order = ?5, updated_at = ?6 WHERE id = ?1",
+            params![id, name, icon, color, sort_order, now],
+        ).map_err(|e| format!("Failed to update folder: {}", e))?;
+        Ok(())
+    }
+
+    pub fn delete_knowledge_folder(&self, id: &str) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        // Delete related flashcards and documents first
+        conn.execute("DELETE FROM flashcards WHERE folder_id = ?1", params![id])
+            .map_err(|e| format!("Failed to delete flashcards: {}", e))?;
+        conn.execute("DELETE FROM knowledge_documents WHERE folder_id = ?1", params![id])
+            .map_err(|e| format!("Failed to delete documents: {}", e))?;
+        conn.execute("DELETE FROM review_sessions WHERE folder_id = ?1", params![id])
+            .map_err(|e| format!("Failed to delete review sessions: {}", e))?;
+        // Move children to parent or root
+        let parent_id: Option<String> = conn.query_row(
+            "SELECT parent_id FROM knowledge_folders WHERE id = ?1", params![id], |row| row.get(0)
+        ).map_err(|e| format!("Query failed: {}", e))?;
+        conn.execute(
+            "UPDATE knowledge_folders SET parent_id = ?2 WHERE parent_id = ?1",
+            params![id, parent_id],
+        ).map_err(|e| format!("Failed to reparent children: {}", e))?;
+        conn.execute("DELETE FROM knowledge_folders WHERE id = ?1", params![id])
+            .map_err(|e| format!("Failed to delete folder: {}", e))?;
+        Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Knowledge — Documents
+    // -----------------------------------------------------------------------
+
+    pub fn create_knowledge_document(&self, doc: &KnowledgeDocumentRecord) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        conn.execute(
+            "INSERT INTO knowledge_documents (id, folder_id, title, content, tags, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![doc.id, doc.folder_id, doc.title, doc.content, doc.tags, doc.created_at, doc.updated_at],
+        ).map_err(|e| format!("Failed to create document: {}", e))?;
+        Ok(())
+    }
+
+    pub fn get_knowledge_document(&self, id: &str) -> Result<Option<KnowledgeDocumentRecord>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let result = conn.query_row(
+            "SELECT id, folder_id, title, content, tags, created_at, updated_at FROM knowledge_documents WHERE id = ?1",
+            params![id],
+            |row| Ok(KnowledgeDocumentRecord {
+                id: row.get(0)?, folder_id: row.get(1)?, title: row.get(2)?,
+                content: row.get(3)?, tags: row.get(4)?, created_at: row.get(5)?, updated_at: row.get(6)?,
+            }),
+        );
+        match result {
+            Ok(r) => Ok(Some(r)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(format!("Query failed: {}", e)),
+        }
+    }
+
+    pub fn list_knowledge_documents(&self, folder_id: &str) -> Result<Vec<KnowledgeDocumentRecord>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, folder_id, title, content, tags, created_at, updated_at
+             FROM knowledge_documents WHERE folder_id = ?1 ORDER BY updated_at DESC"
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let rows = stmt.query_map(params![folder_id], |row| {
+            Ok(KnowledgeDocumentRecord {
+                id: row.get(0)?, folder_id: row.get(1)?, title: row.get(2)?,
+                content: row.get(3)?, tags: row.get(4)?, created_at: row.get(5)?, updated_at: row.get(6)?,
+            })
+        }).map_err(|e| format!("Query failed: {}", e))?;
+
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("Row error: {}", e))
+    }
+
+    pub fn update_knowledge_document(&self, id: &str, title: &str, content: &str, tags: &str) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE knowledge_documents SET title = ?2, content = ?3, tags = ?4, updated_at = ?5 WHERE id = ?1",
+            params![id, title, content, tags, now],
+        ).map_err(|e| format!("Failed to update document: {}", e))?;
+        Ok(())
+    }
+
+    pub fn delete_knowledge_document(&self, id: &str) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        conn.execute("DELETE FROM flashcards WHERE document_id = ?1", params![id])
+            .map_err(|e| format!("Failed to delete flashcards: {}", e))?;
+        conn.execute("DELETE FROM knowledge_documents WHERE id = ?1", params![id])
+            .map_err(|e| format!("Failed to delete document: {}", e))?;
+        Ok(())
+    }
+
+    pub fn search_knowledge_documents(&self, query: &str) -> Result<Vec<KnowledgeDocumentRecord>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let pattern = format!("%{}%", query);
+        let mut stmt = conn.prepare(
+            "SELECT id, folder_id, title, content, tags, created_at, updated_at
+             FROM knowledge_documents
+             WHERE title LIKE ?1 OR content LIKE ?1
+             ORDER BY updated_at DESC LIMIT 50"
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let rows = stmt.query_map(params![pattern], |row| {
+            Ok(KnowledgeDocumentRecord {
+                id: row.get(0)?, folder_id: row.get(1)?, title: row.get(2)?,
+                content: row.get(3)?, tags: row.get(4)?, created_at: row.get(5)?, updated_at: row.get(6)?,
+            })
+        }).map_err(|e| format!("Query failed: {}", e))?;
+
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("Row error: {}", e))
+    }
+
+    // -----------------------------------------------------------------------
+    // Knowledge — Flashcards
+    // -----------------------------------------------------------------------
+
+    pub fn create_flashcard(&self, card: &FlashcardRecord) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        conn.execute(
+            "INSERT INTO flashcards (id, document_id, folder_id, front, back, card_type, ease, interval, repetitions, next_review_at, last_reviewed_at, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![card.id, card.document_id, card.folder_id, card.front, card.back, card.card_type,
+                    card.ease, card.interval, card.repetitions, card.next_review_at, card.last_reviewed_at, card.created_at],
+        ).map_err(|e| format!("Failed to create flashcard: {}", e))?;
+        Ok(())
+    }
+
+    pub fn create_flashcards_batch(&self, cards: &[FlashcardRecord]) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let tx = conn.unchecked_transaction().map_err(|e| format!("Transaction failed: {}", e))?;
+        for card in cards {
+            tx.execute(
+                "INSERT INTO flashcards (id, document_id, folder_id, front, back, card_type, ease, interval, repetitions, next_review_at, last_reviewed_at, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                params![card.id, card.document_id, card.folder_id, card.front, card.back, card.card_type,
+                        card.ease, card.interval, card.repetitions, card.next_review_at, card.last_reviewed_at, card.created_at],
+            ).map_err(|e| format!("Failed to create flashcard: {}", e))?;
+        }
+        tx.commit().map_err(|e| format!("Commit failed: {}", e))?;
+        Ok(())
+    }
+
+    pub fn list_flashcards_by_folder(&self, folder_id: &str) -> Result<Vec<FlashcardRecord>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, document_id, folder_id, front, back, card_type, ease, interval, repetitions, next_review_at, last_reviewed_at, created_at
+             FROM flashcards WHERE folder_id = ?1 ORDER BY created_at DESC"
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let rows = stmt.query_map(params![folder_id], Self::map_flashcard_row)
+            .map_err(|e| format!("Query failed: {}", e))?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("Row error: {}", e))
+    }
+
+    pub fn list_flashcards_by_document(&self, document_id: &str) -> Result<Vec<FlashcardRecord>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, document_id, folder_id, front, back, card_type, ease, interval, repetitions, next_review_at, last_reviewed_at, created_at
+             FROM flashcards WHERE document_id = ?1 ORDER BY created_at DESC"
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let rows = stmt.query_map(params![document_id], Self::map_flashcard_row)
+            .map_err(|e| format!("Query failed: {}", e))?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("Row error: {}", e))
+    }
+
+    pub fn get_due_flashcards(&self, folder_id: &str) -> Result<Vec<FlashcardRecord>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let now = chrono::Utc::now().to_rfc3339();
+        let mut stmt = conn.prepare(
+            "SELECT id, document_id, folder_id, front, back, card_type, ease, interval, repetitions, next_review_at, last_reviewed_at, created_at
+             FROM flashcards WHERE folder_id = ?1 AND next_review_at <= ?2
+             ORDER BY next_review_at ASC"
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let rows = stmt.query_map(params![folder_id, now], Self::map_flashcard_row)
+            .map_err(|e| format!("Query failed: {}", e))?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("Row error: {}", e))
+    }
+
+    pub fn get_all_due_flashcards(&self) -> Result<Vec<FlashcardRecord>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let now = chrono::Utc::now().to_rfc3339();
+        let mut stmt = conn.prepare(
+            "SELECT id, document_id, folder_id, front, back, card_type, ease, interval, repetitions, next_review_at, last_reviewed_at, created_at
+             FROM flashcards WHERE next_review_at <= ?1
+             ORDER BY next_review_at ASC"
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let rows = stmt.query_map(params![now], Self::map_flashcard_row)
+            .map_err(|e| format!("Query failed: {}", e))?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("Row error: {}", e))
+    }
+
+    pub fn update_flashcard_review(&self, id: &str, ease: f64, interval: i64, repetitions: i64, next_review_at: &str) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE flashcards SET ease = ?2, interval = ?3, repetitions = ?4, next_review_at = ?5, last_reviewed_at = ?6 WHERE id = ?1",
+            params![id, ease, interval, repetitions, next_review_at, now],
+        ).map_err(|e| format!("Failed to update flashcard: {}", e))?;
+        Ok(())
+    }
+
+    pub fn delete_flashcard(&self, id: &str) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        conn.execute("DELETE FROM flashcards WHERE id = ?1", params![id])
+            .map_err(|e| format!("Failed to delete flashcard: {}", e))?;
+        Ok(())
+    }
+
+    pub fn delete_flashcards_by_document(&self, document_id: &str) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        conn.execute("DELETE FROM flashcards WHERE document_id = ?1", params![document_id])
+            .map_err(|e| format!("Failed to delete flashcards: {}", e))?;
+        Ok(())
+    }
+
+    fn map_flashcard_row(row: &rusqlite::Row) -> rusqlite::Result<FlashcardRecord> {
+        Ok(FlashcardRecord {
+            id: row.get(0)?, document_id: row.get(1)?, folder_id: row.get(2)?,
+            front: row.get(3)?, back: row.get(4)?, card_type: row.get(5)?,
+            ease: row.get(6)?, interval: row.get(7)?, repetitions: row.get(8)?,
+            next_review_at: row.get(9)?, last_reviewed_at: row.get(10)?, created_at: row.get(11)?,
+        })
+    }
+
+    // -----------------------------------------------------------------------
+    // Knowledge — Review Sessions
+    // -----------------------------------------------------------------------
+
+    pub fn create_review_session(&self, session: &ReviewSessionRecord) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        conn.execute(
+            "INSERT INTO review_sessions (id, folder_id, started_at, ended_at, cards_reviewed, correct_count, wrong_count)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![session.id, session.folder_id, session.started_at, session.ended_at,
+                    session.cards_reviewed, session.correct_count, session.wrong_count],
+        ).map_err(|e| format!("Failed to create review session: {}", e))?;
+        Ok(())
+    }
+
+    pub fn list_review_sessions(&self, folder_id: &str, limit: usize) -> Result<Vec<ReviewSessionRecord>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, folder_id, started_at, ended_at, cards_reviewed, correct_count, wrong_count
+             FROM review_sessions WHERE folder_id = ?1 ORDER BY started_at DESC LIMIT ?2"
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let rows = stmt.query_map(params![folder_id, limit as i64], |row| {
+            Ok(ReviewSessionRecord {
+                id: row.get(0)?, folder_id: row.get(1)?, started_at: row.get(2)?,
+                ended_at: row.get(3)?, cards_reviewed: row.get(4)?,
+                correct_count: row.get(5)?, wrong_count: row.get(6)?,
+            })
+        }).map_err(|e| format!("Query failed: {}", e))?;
+
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| format!("Row error: {}", e))
+    }
+
+    pub fn get_knowledge_stats(&self, folder_id: &str) -> Result<KnowledgeStatsRecord, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let now = chrono::Utc::now().to_rfc3339();
+
+        let total_cards: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM flashcards WHERE folder_id = ?1", params![folder_id], |r| r.get(0)
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let due_cards: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM flashcards WHERE folder_id = ?1 AND next_review_at <= ?2",
+            params![folder_id, now], |r| r.get(0)
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let mastered_cards: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM flashcards WHERE folder_id = ?1 AND interval >= 30",
+            params![folder_id], |r| r.get(0)
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let total_reviews: i64 = conn.query_row(
+            "SELECT COALESCE(SUM(cards_reviewed), 0) FROM review_sessions WHERE folder_id = ?1",
+            params![folder_id], |r| r.get(0)
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let total_correct: i64 = conn.query_row(
+            "SELECT COALESCE(SUM(correct_count), 0) FROM review_sessions WHERE folder_id = ?1",
+            params![folder_id], |r| r.get(0)
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        Ok(KnowledgeStatsRecord {
+            total_cards,
+            due_cards,
+            mastered_cards,
+            total_reviews,
+            success_rate: if total_reviews > 0 { total_correct as f64 / total_reviews as f64 * 100.0 } else { 0.0 },
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Record types (serializable for IPC)
-// ---------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -753,4 +1142,68 @@ pub struct XPHistoryRecord {
     pub amount: i64,
     pub reason: String,
     pub timestamp: i64,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeFolderRecord {
+    pub id: String,
+    pub name: String,
+    pub parent_id: Option<String>,
+    pub icon: String,
+    pub color: String,
+    pub sort_order: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeDocumentRecord {
+    pub id: String,
+    pub folder_id: String,
+    pub title: String,
+    pub content: String,
+    pub tags: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FlashcardRecord {
+    pub id: String,
+    pub document_id: Option<String>,
+    pub folder_id: String,
+    pub front: String,
+    pub back: String,
+    pub card_type: String,
+    pub ease: f64,
+    pub interval: i64,
+    pub repetitions: i64,
+    pub next_review_at: String,
+    pub last_reviewed_at: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewSessionRecord {
+    pub id: String,
+    pub folder_id: String,
+    pub started_at: String,
+    pub ended_at: Option<String>,
+    pub cards_reviewed: i64,
+    pub correct_count: i64,
+    pub wrong_count: i64,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KnowledgeStatsRecord {
+    pub total_cards: i64,
+    pub due_cards: i64,
+    pub mastered_cards: i64,
+    pub total_reviews: i64,
+    pub success_rate: f64,
 }

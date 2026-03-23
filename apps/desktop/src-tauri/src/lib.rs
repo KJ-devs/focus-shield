@@ -51,6 +51,28 @@ pub fn run() {
             commands::storage_get_streak_info,
             commands::storage_use_streak_freeze,
             commands::storage_get_game_stats,
+            // Knowledge module
+            commands::knowledge_create_folder,
+            commands::knowledge_list_folders,
+            commands::knowledge_update_folder,
+            commands::knowledge_delete_folder,
+            commands::knowledge_create_document,
+            commands::knowledge_get_document,
+            commands::knowledge_list_documents,
+            commands::knowledge_update_document,
+            commands::knowledge_delete_document,
+            commands::knowledge_search_documents,
+            commands::knowledge_create_flashcard,
+            commands::knowledge_create_flashcards_batch,
+            commands::knowledge_list_flashcards,
+            commands::knowledge_list_flashcards_by_document,
+            commands::knowledge_get_due_flashcards,
+            commands::knowledge_update_flashcard_review,
+            commands::knowledge_delete_flashcard,
+            commands::knowledge_delete_flashcards_by_document,
+            commands::knowledge_create_review_session,
+            commands::knowledge_list_review_sessions,
+            commands::knowledge_get_stats,
         ])
         .setup(|app| {
             // Initialize SQLite storage
