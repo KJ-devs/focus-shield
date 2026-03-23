@@ -167,7 +167,16 @@
     "year1": "1 an",
     "dayStreak": "jours de s\u00e9rie",
     "longest": "Record",
-    "freeze": "Geler"
+    "freeze": "Geler",
+    "knowledge": {
+      "title": "Connaissances",
+      "totalCards": "Total cartes",
+      "dueCards": "Cartes dues",
+      "mastered": "Ma\u00eetris\u00e9es",
+      "successRate": "Taux de r\u00e9ussite",
+      "totalReviews": "Total r\u00e9visions",
+      "noData": "Cr\u00e9e des flashcards pour voir les statistiques."
+    }
   },
   "achievements": {
     "title": "Succ\u00e8s",
@@ -299,7 +308,8 @@
     "backToKnowledge": "Retour aux Connaissances",
     "flashcardMode": "Flashcards",
     "quizMode": "Quiz",
-    "quizHint": "S\u00e9lectionne la bonne r\u00e9ponse"
+    "quizHint": "S\u00e9lectionne la bonne r\u00e9ponse",
+    "xpEarned": "XP gagn\u00e9s"
   },
   "lockLevels": {
     "gentle": "Doux",

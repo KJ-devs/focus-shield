@@ -8,6 +8,7 @@ interface StudyCompleteProps {
   correct: number;
   wrong: number;
   elapsedMs: number;
+  xpEarned?: number;
   onStudyAgain: () => void;
 }
 
@@ -24,6 +25,7 @@ export function StudyComplete({
   correct,
   wrong,
   elapsedMs,
+  xpEarned,
   onStudyAgain,
 }: StudyCompleteProps) {
   const { t } = useTranslation();
@@ -71,8 +73,14 @@ export function StudyComplete({
           <StatItem
             label={t("study.timeTaken")}
             value={formatDuration(elapsedMs)}
-            className="col-span-2"
           />
+          {xpEarned !== undefined && xpEarned > 0 && (
+            <StatItem
+              label={t("study.xpEarned")}
+              value={`+${xpEarned}`}
+              color="text-focus-600 dark:text-focus-400"
+            />
+          )}
         </div>
       </Card>
 

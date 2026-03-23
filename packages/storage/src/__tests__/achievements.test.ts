@@ -30,8 +30,8 @@ function makeStats(overrides?: Partial<UserGameStats>): UserGameStats {
 // ──────────────────── ACHIEVEMENT_CATALOG ────────────────────
 
 describe("ACHIEVEMENT_CATALOG", () => {
-  it("contains exactly 9 achievements", () => {
-    expect(ACHIEVEMENT_CATALOG).toHaveLength(9);
+  it("contains exactly 16 achievements", () => {
+    expect(ACHIEVEMENT_CATALOG).toHaveLength(16);
   });
 
   it("has all expected IDs", () => {
@@ -46,6 +46,13 @@ describe("ACHIEVEMENT_CATALOG", () => {
       "comeback-kid",
       "century",
       "deep-diver",
+      "first-card",
+      "scholar",
+      "speed-reader",
+      "knowledge-builder",
+      "perfect-recall",
+      "cram-master",
+      "deep-memory",
     ]);
   });
 
@@ -352,16 +359,16 @@ describe("isAchievementConditionMet", () => {
 // ──────────────────── checkAchievementProgress ────────────────────
 
 describe("checkAchievementProgress", () => {
-  it("returns progress for all 9 achievements with empty existing array", () => {
+  it("returns progress for all achievements with empty existing array", () => {
     const stats = makeStats();
     const progress = checkAchievementProgress(stats, []);
-    expect(progress).toHaveLength(9);
+    expect(progress).toHaveLength(ACHIEVEMENT_CATALOG.length);
   });
 
   it("returns progress for all achievements when existing is omitted", () => {
     const stats = makeStats();
     const progress = checkAchievementProgress(stats);
-    expect(progress).toHaveLength(9);
+    expect(progress).toHaveLength(ACHIEVEMENT_CATALOG.length);
   });
 
   it("marks achievements as unlocked when conditions are met", () => {

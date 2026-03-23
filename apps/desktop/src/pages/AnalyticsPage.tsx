@@ -11,6 +11,7 @@ import { StreakCounter } from "@/components/analytics/StreakCounter";
 import { useGamificationStore } from "@/stores/gamification-store";
 import { PeakHours } from "@/components/analytics/PeakHours";
 import { Insights } from "@/components/analytics/Insights";
+import { KnowledgeAnalytics } from "@/components/knowledge/KnowledgeAnalytics";
 import {
   storageGetStatsRange,
   storageGetStreak,
@@ -320,6 +321,8 @@ export function AnalyticsPage() {
           />
         </Card>
       </div>
+
+      <KnowledgeAnalytics />
     </div>
   );
 }

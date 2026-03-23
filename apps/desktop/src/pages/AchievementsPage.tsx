@@ -14,6 +14,13 @@ const ACHIEVEMENT_ICONS: Record<string, string> = {
   rocket: "\uD83D\uDE80",
   hundred: "\uD83D\uDCAF",
   ocean: "\uD83C\uDF0A",
+  card: "\uD83C\uDCCF",
+  graduation: "\uD83C\uDF93",
+  lightning: "\u26A1",
+  book: "\uD83D\uDCDA",
+  brain: "\uD83E\uDDE0",
+  fire: "\uD83D\uDD25",
+  diamond: "\uD83D\uDC8E",
 };
 
 function getAchievementEmoji(icon: string): string {

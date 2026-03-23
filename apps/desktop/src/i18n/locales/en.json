@@ -167,7 +167,16 @@
     "year1": "1 year",
     "dayStreak": "day streak",
     "longest": "Longest",
-    "freeze": "Freeze"
+    "freeze": "Freeze",
+    "knowledge": {
+      "title": "Knowledge",
+      "totalCards": "Total Cards",
+      "dueCards": "Due Cards",
+      "mastered": "Mastered",
+      "successRate": "Success Rate",
+      "totalReviews": "Total Reviews",
+      "noData": "Create flashcards to see knowledge analytics."
+    }
   },
   "achievements": {
     "title": "Achievements",
@@ -299,7 +308,8 @@
     "backToKnowledge": "Back to Knowledge",
     "flashcardMode": "Flashcards",
     "quizMode": "Quiz",
-    "quizHint": "Select the correct answer"
+    "quizHint": "Select the correct answer",
+    "xpEarned": "XP Earned"
   },
   "lockLevels": {
     "gentle": "Gentle",

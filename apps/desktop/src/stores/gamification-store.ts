@@ -60,6 +60,7 @@ export interface GamificationState {
     startHour: number,
     endHour: number,
   ) => Promise<void>;
+  recordReviewXP: (correctCount: number, wrongCount: number) => Promise<void>;
   useStreakFreeze: () => Promise<boolean>;
   dismissNewlyUnlocked: () => void;
 }
@@ -200,6 +201,76 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
     } catch {
       // Best effort
     }
+  },
+
+  recordReviewXP: async (correctCount, wrongCount) => {
+    const state = get();
+    const xpAmount = correctCount * 5 + wrongCount * 2;
+    if (xpAmount === 0) return;
+
+    const sessionId = `review-${Date.now()}`;
+    const xpGain: XPGain = {
+      sessionId,
+      amount: xpAmount,
+      reason: "knowledge_review",
+      timestamp: Date.now(),
+    };
+
+    const newTotalXp = state.totalXp + xpAmount;
+    const newLevelInfo = getLevelInfo(newTotalXp);
+
+    // Build knowledge-aware stats for achievement evaluation
+    const totalReviewed = correctCount + wrongCount;
+    const stats: UserGameStats = {
+      totalSessionsCompleted: 0,
+      currentStreak: state.currentStreak,
+      totalFocusHours: 0,
+      longestSessionMinutes: 0,
+      hardcoreSessionsWithoutOverride: 0,
+      zeroDistractionSessions: 0,
+      earliestSessionStartHour: null,
+      latestSessionEndHour: null,
+      daysSinceLastSession: 0,
+      deepWorkHours: 0,
+      totalCardsReviewed: totalReviewed,
+      cardsInLastSession: totalReviewed,
+      lastSessionPerfectRecall: wrongCount === 0,
+      lastSessionCardCount: totalReviewed,
+      cardsReviewedToday: totalReviewed,
+    };
+
+    const oldProgress = state.achievementProgress;
+    const newProgress = checkAchievementProgress(stats, oldProgress);
+    const newlyUnlocked = getNewlyUnlockedAchievements(oldProgress, newProgress);
+
+    try {
+      await Promise.all([
+        storageSaveXpGain(sessionId, xpAmount, "knowledge_review"),
+        storageUpdateUserProgress(newTotalXp, JSON.stringify(newProgress)),
+      ]);
+    } catch {
+      // Best effort
+    }
+
+    if (xpAmount > 0) {
+      toastInfo(`+${xpAmount} XP earned!`);
+    }
+
+    if (newLevelInfo.level > state.levelInfo.level) {
+      toastInfo(`Level up! You are now ${newLevelInfo.title} (Level ${newLevelInfo.level})`);
+    }
+
+    for (const achievement of newlyUnlocked) {
+      toastInfo(`Achievement unlocked: ${achievement.name}!`);
+    }
+
+    set({
+      totalXp: newTotalXp,
+      levelInfo: newLevelInfo,
+      achievementProgress: newProgress,
+      newlyUnlocked: [...state.newlyUnlocked, ...newlyUnlocked],
+      lastXpGain: xpGain,
+    });
   },
 
   useStreakFreeze: async () => {

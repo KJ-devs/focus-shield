@@ -9,7 +9,14 @@ export type AchievementCondition =
   | { type: "lock_level_sessions"; level: number; count: number }
   | { type: "zero_distractions"; count: number }
   | { type: "time_of_day"; beforeHour?: number; afterHour?: number }
-  | { type: "comeback"; inactiveDays: number };
+  | { type: "comeback"; inactiveDays: number }
+  | { type: "cards_reviewed"; count: number }
+  | { type: "cards_mastered"; count: number }
+  | { type: "cards_in_session"; count: number }
+  | { type: "documents_created"; count: number }
+  | { type: "perfect_recall"; minCards: number }
+  | { type: "cards_reviewed_day"; count: number }
+  | { type: "card_interval_days"; days: number };
 
 /**
  * Static definition of an achievement in the catalogue.
@@ -47,6 +54,15 @@ export interface UserGameStats {
   latestSessionEndHour: number | null;
   daysSinceLastSession: number;
   deepWorkHours: number;
+  // Knowledge stats
+  totalCardsReviewed?: number;
+  cardsMastered?: number;
+  cardsInLastSession?: number;
+  documentsCreated?: number;
+  lastSessionPerfectRecall?: boolean;
+  lastSessionCardCount?: number;
+  cardsReviewedToday?: number;
+  longestCardIntervalDays?: number;
 }
 
 /**
@@ -125,6 +141,63 @@ export const ACHIEVEMENT_CATALOG: readonly AchievementDefinition[] = [
     condition: { type: "total_focus_hours", hours: 50 },
     maxProgress: 50,
   },
+  // Knowledge achievements
+  {
+    id: "first-card",
+    name: "First Card",
+    description: "Review your first flashcard",
+    icon: "card",
+    condition: { type: "cards_reviewed", count: 1 },
+    maxProgress: 1,
+  },
+  {
+    id: "scholar",
+    name: "Scholar",
+    description: "Master 100 flashcards (interval > 30 days)",
+    icon: "graduation",
+    condition: { type: "cards_mastered", count: 100 },
+    maxProgress: 100,
+  },
+  {
+    id: "speed-reader",
+    name: "Speed Reader",
+    description: "Review 50 cards in one session",
+    icon: "lightning",
+    condition: { type: "cards_in_session", count: 50 },
+    maxProgress: 1,
+  },
+  {
+    id: "knowledge-builder",
+    name: "Knowledge Builder",
+    description: "Create 10 documents",
+    icon: "book",
+    condition: { type: "documents_created", count: 10 },
+    maxProgress: 10,
+  },
+  {
+    id: "perfect-recall",
+    name: "Perfect Recall",
+    description: "100% accuracy on a 20+ card session",
+    icon: "brain",
+    condition: { type: "perfect_recall", minCards: 20 },
+    maxProgress: 1,
+  },
+  {
+    id: "cram-master",
+    name: "Cram Master",
+    description: "Review 200 cards in one day",
+    icon: "fire",
+    condition: { type: "cards_reviewed_day", count: 200 },
+    maxProgress: 200,
+  },
+  {
+    id: "deep-memory",
+    name: "Deep Memory",
+    description: "A card with interval > 180 days",
+    icon: "diamond",
+    condition: { type: "card_interval_days", days: 180 },
+    maxProgress: 1,
+  },
 ] as const;
 
 /**
@@ -197,6 +270,59 @@ function evaluateCondition(
         met: stats.daysSinceLastSession >= condition.inactiveDays,
         progress: stats.daysSinceLastSession >= condition.inactiveDays ? 1 : 0,
       };
+
+    case "cards_reviewed": {
+      const reviewed = stats.totalCardsReviewed ?? 0;
+      return {
+        met: reviewed >= condition.count,
+        progress: Math.min(reviewed, condition.count),
+      };
+    }
+
+    case "cards_mastered": {
+      const mastered = stats.cardsMastered ?? 0;
+      return {
+        met: mastered >= condition.count,
+        progress: Math.min(mastered, condition.count),
+      };
+    }
+
+    case "cards_in_session": {
+      const inSession = stats.cardsInLastSession ?? 0;
+      return {
+        met: inSession >= condition.count,
+        progress: inSession >= condition.count ? 1 : 0,
+      };
+    }
+
+    case "documents_created": {
+      const docs = stats.documentsCreated ?? 0;
+      return {
+        met: docs >= condition.count,
+        progress: Math.min(docs, condition.count),
+      };
+    }
+
+    case "perfect_recall": {
+      const perfect = stats.lastSessionPerfectRecall ?? false;
+      const cardCount = stats.lastSessionCardCount ?? 0;
+      const met = perfect && cardCount >= condition.minCards;
+      return { met, progress: met ? 1 : 0 };
+    }
+
+    case "cards_reviewed_day": {
+      const today = stats.cardsReviewedToday ?? 0;
+      return {
+        met: today >= condition.count,
+        progress: Math.min(today, condition.count),
+      };
+    }
+
+    case "card_interval_days": {
+      const interval = stats.longestCardIntervalDays ?? 0;
+      const met = interval >= condition.days;
+      return { met, progress: met ? 1 : 0 };
+    }
   }
 }
 

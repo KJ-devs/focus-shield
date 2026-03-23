@@ -15,6 +15,7 @@ import { ReviewButtons } from "@/components/knowledge/ReviewButtons";
 import { StudyProgress } from "@/components/knowledge/StudyProgress";
 import { StudyComplete } from "@/components/knowledge/StudyComplete";
 import { QuizView } from "@/components/knowledge/QuizView";
+import { useGamificationStore } from "@/stores/gamification-store";
 
 type StudyMode = "flashcard" | "quiz";
 
@@ -64,6 +65,7 @@ export function StudyPage() {
   const [finished, setFinished] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [xpEarned, setXpEarned] = useState(0);
 
   const startTimeRef = useRef(Date.now());
   const resolvedFolderId = folderId === "all" ? undefined : folderId;
@@ -96,6 +98,7 @@ export function StudyPage() {
     setCorrect(0);
     setWrong(0);
     setFinished(false);
+    setXpEarned(0);
     startTimeRef.current = Date.now();
     void loadCards();
   }, [loadCards]);
@@ -153,7 +156,10 @@ export function StudyPage() {
 
       if (currentIndex + 1 >= cards.length) {
         setFinished(true);
+        const earnedXp = newCorrect * 5 + newWrong * 2;
+        setXpEarned(earnedXp);
         await saveReviewSession(cards.length, newCorrect, newWrong);
+        await useGamificationStore.getState().recordReviewXP(newCorrect, newWrong);
       } else {
         setCurrentIndex((i) => i + 1);
         setIsFlipped(false);
@@ -164,11 +170,14 @@ export function StudyPage() {
 
   const handleQuizComplete = useCallback(
     (quizCorrect: number, quizWrong: number) => {
+      const earnedXp = quizCorrect * 5 + quizWrong * 2;
+      setXpEarned(earnedXp);
       void saveReviewSession(
         quizCorrect + quizWrong,
         quizCorrect,
         quizWrong,
       );
+      void useGamificationStore.getState().recordReviewXP(quizCorrect, quizWrong);
     },
     [saveReviewSession],
   );
@@ -284,6 +293,7 @@ export function StudyPage() {
           correct={correct}
           wrong={wrong}
           elapsedMs={Date.now() - startTimeRef.current}
+          xpEarned={xpEarned}
           onStudyAgain={resetSession}
         />
       )}
