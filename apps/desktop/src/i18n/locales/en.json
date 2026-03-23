@@ -79,7 +79,11 @@
     "unlockSession": "Unlock Session",
     "enterToken": "Enter the token you wrote down to stop the session early.",
     "tokenDisplayActive": "Token Display Active",
-    "redirecting": "Redirecting to token display..."
+    "redirecting": "Redirecting to token display...",
+    "breakReview": "Review while you wait",
+    "noCardsToReview": "No flashcards to review",
+    "knowIt": "Know it",
+    "dontKnowIt": "Don't know"
   },
   "launcher": {
     "title": "Launch Session",

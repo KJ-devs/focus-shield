@@ -79,7 +79,11 @@
     "unlockSession": "D\u00e9verrouiller la session",
     "enterToken": "Entre le code que tu as not\u00e9 pour arr\u00eater la session.",
     "tokenDisplayActive": "Affichage du code",
-    "redirecting": "Redirection vers l\u2019affichage du code..."
+    "redirecting": "Redirection vers l\u2019affichage du code...",
+    "breakReview": "R\u00e9vise en attendant",
+    "noCardsToReview": "Aucune flashcard \u00e0 r\u00e9viser",
+    "knowIt": "Je sais",
+    "dontKnowIt": "Je ne sais pas"
   },
   "launcher": {
     "title": "Lancer une session",

@@ -88,6 +88,18 @@ export const PRESETS: PresetData[] = [
       { type: "break", duration: 30, blockingEnabled: false },
     ],
   },
+  {
+    id: "study-session",
+    name: "Study Session (Flashcards)",
+    icon: "study",
+    description: "Review your flashcards with timed focus",
+    blocks: [
+      { type: "focus", duration: 25, blockingEnabled: true },
+      { type: "break", duration: 5, blockingEnabled: false },
+      { type: "focus", duration: 25, blockingEnabled: true },
+      { type: "break", duration: 5, blockingEnabled: false },
+    ],
+  },
 ];
 
 const ICON_MAP: Record<string, string> = {
@@ -98,6 +110,7 @@ const ICON_MAP: Record<string, string> = {
   wave: "\uD83C\uDF0A",
   target: "\uD83C\uDFAF",
   fire: "\uD83D\uDD25",
+  study: "\uD83D\uDDD2\uFE0F",
 };
 
 export function getPresetEmoji(icon: string): string {

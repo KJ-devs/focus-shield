@@ -8,6 +8,7 @@ import type { SchedulePattern } from "@/stores/schedule-store";
 import { CircularTimer } from "@/components/session/CircularTimer";
 import { PasswordInput } from "@/components/session/PasswordInput";
 import { SessionReview } from "@/components/session/SessionReview";
+import { BreakFlashcards } from "@/components/knowledge/BreakFlashcards";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -189,14 +190,17 @@ function BlockedItemsList() {
 // ---------------------------------------------------------------------------
 
 function ActiveSessionView() {
+  const { t } = useTranslation();
   const timeRemainingMs = useSessionStore((s) => s.timeRemainingMs);
   const config = useSessionStore((s) => s.config);
+  const currentBlockIndex = useSessionStore((s) => s.currentBlockIndex);
   const distractionCount = useSessionStore((s) => s.distractionCount);
   const startedAt = useSessionStore((s) => s.startedAt);
   const requestUnlock = useSessionStore((s) => s.requestUnlock);
 
   const totalDurationMs = config?.durationMs ?? 0;
   const sessionName = config?.presetName ?? "Session";
+  const isBreak = config?.blocks[currentBlockIndex]?.type === "break";
 
   const elapsedMs = startedAt ? Date.now() - startedAt : 0;
   const elapsedMinutes = Math.floor(elapsedMs / 60_000);
@@ -215,6 +219,16 @@ function ActiveSessionView() {
       />
 
       <BlockProgression />
+
+      {/* Flashcard review during breaks */}
+      {isBreak && (
+        <div className="flex flex-col items-center gap-2">
+          <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            {t("session.breakReview")}
+          </span>
+          <BreakFlashcards />
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
