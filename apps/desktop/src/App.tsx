@@ -12,6 +12,7 @@ import { AchievementsPage } from "@/pages/AchievementsPage";
 import { BuddyPage } from "@/pages/BuddyPage";
 import { ChallengePage } from "@/pages/ChallengePage";
 import { CoworkingPage } from "@/pages/CoworkingPage";
+import { KnowledgePage } from "@/pages/KnowledgePage";
 import { BlockedPage } from "@/components/blocked/BlockedPage";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -62,6 +63,7 @@ export function App() {
           <Route path="launch" element={<SessionLauncherPage />} />
           <Route path="blocklists" element={<BlocklistsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="knowledge" element={<KnowledgePage />} />
           <Route path="profiles" element={<ProfilesPage />} />
           <Route path="achievements" element={<AchievementsPage />} />
           <Route path="buddy" element={<ComingSoonBanner><BuddyPage /></ComingSoonBanner>} />

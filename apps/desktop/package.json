@@ -17,6 +17,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@focus-shield/knowledge": "workspace:^",
     "@focus-shield/shared-types": "workspace:*",
     "@focus-shield/storage": "workspace:*",
     "@focus-shield/ui-components": "workspace:*",
@@ -24,6 +25,9 @@
     "@tauri-apps/plugin-notification": "^2.2.0",
     "@tauri-apps/plugin-shell": "^2.2.0",
     "@tauri-apps/plugin-sql": "^2.2.0",
+    "@tiptap/extension-placeholder": "^3.20.4",
+    "@tiptap/react": "^3.20.4",
+    "@tiptap/starter-kit": "^3.20.4",
     "i18next": "^25.10.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

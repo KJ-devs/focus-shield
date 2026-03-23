@@ -9,7 +9,8 @@
     "settings": "Param\u00e8tres",
     "buddy": "Partenaires",
     "challenges": "D\u00e9fis",
-    "coworking": "Coworking"
+    "coworking": "Coworking",
+    "knowledge": "Connaissances"
   },
   "common": {
     "start": "D\u00e9marrer",
@@ -244,6 +245,26 @@
     "flow": "\u00c9tat de flow",
     "quickTask": "T\u00e2che rapide",
     "marathon": "Marathon"
+  },
+  "knowledge": {
+    "title": "Connaissances",
+    "folders": "Dossiers",
+    "documents": "Documents",
+    "flashcards": "Flashcards",
+    "newFolder": "Nouveau dossier",
+    "newDocument": "Nouveau document",
+    "folderName": "Nom du dossier...",
+    "untitledDocument": "Document sans titre",
+    "selectDocument": "S\u00e9lectionne un document pour commencer",
+    "selectFolderFirst": "S\u00e9lectionne un dossier pour voir ses documents",
+    "noFolders": "Aucun dossier. Cr\u00e9es-en un pour organiser tes notes.",
+    "noDocuments": "Aucun document dans ce dossier.",
+    "editorPlaceholder": "Commence \u00e0 \u00e9crire...",
+    "generateCards": "G\u00e9n\u00e9rer des cartes",
+    "saveAllCards": "Enregistrer toutes les cartes",
+    "noCardsGenerated": "G\u00e9n\u00e8re des flashcards depuis le document actuel.",
+    "cardsGenerated": "cartes g\u00e9n\u00e9r\u00e9es",
+    "cardsSaved": "Cartes enregistr\u00e9es"
   },
   "lockLevels": {
     "gentle": "Doux",

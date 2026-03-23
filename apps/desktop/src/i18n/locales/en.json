@@ -9,7 +9,8 @@
     "settings": "Settings",
     "buddy": "Buddies",
     "challenges": "Challenges",
-    "coworking": "Coworking"
+    "coworking": "Coworking",
+    "knowledge": "Knowledge"
   },
   "common": {
     "start": "Start",
@@ -244,6 +245,26 @@
     "flow": "Flow State",
     "quickTask": "Quick Task",
     "marathon": "Marathon"
+  },
+  "knowledge": {
+    "title": "Knowledge",
+    "folders": "Folders",
+    "documents": "Documents",
+    "flashcards": "Flashcards",
+    "newFolder": "New Folder",
+    "newDocument": "New Document",
+    "folderName": "Folder name...",
+    "untitledDocument": "Untitled Document",
+    "selectDocument": "Select a document to start editing",
+    "selectFolderFirst": "Select a folder to see its documents",
+    "noFolders": "No folders yet. Create one to organize your notes.",
+    "noDocuments": "No documents in this folder.",
+    "editorPlaceholder": "Start writing...",
+    "generateCards": "Generate Cards",
+    "saveAllCards": "Save All Cards",
+    "noCardsGenerated": "Generate flashcards from the current document.",
+    "cardsGenerated": "cards generated",
+    "cardsSaved": "Cards Saved"
   },
   "lockLevels": {
     "gentle": "Gentle",

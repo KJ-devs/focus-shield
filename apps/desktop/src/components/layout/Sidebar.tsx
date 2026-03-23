@@ -114,11 +114,20 @@ function IconTrophy() {
   );
 }
 
+function IconBook() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 3h5a2 2 0 012 2v12a1.5 1.5 0 00-1.5-1.5H4V3zM16 3h-5a2 2 0 00-2 2v12a1.5 1.5 0 011.5-1.5H16V3z" />
+    </svg>
+  );
+}
+
 const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "nav.home", icon: <IconHome /> },
   { to: "/sessions", label: "nav.sessions", icon: <IconPlay /> },
   { to: "/blocklists", label: "nav.blocklists", icon: <IconShieldNav /> },
   { to: "/analytics", label: "nav.analytics", icon: <IconChart /> },
+  { to: "/knowledge", label: "nav.knowledge", icon: <IconBook /> },
   { to: "/achievements", label: "nav.achievements", icon: <IconTrophy /> },
   { to: "/profiles", label: "nav.profiles", icon: <IconUser /> },
   { to: "/settings", label: "nav.settings", icon: <IconSettings /> },
