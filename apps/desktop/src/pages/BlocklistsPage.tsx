@@ -780,7 +780,7 @@ function CustomBlocklistCard({
           </div>
         </button>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Toggle
             checked={blocklist.enabled}
             onChange={() => toggleBlocklist(blocklist.id)}
@@ -791,7 +791,10 @@ function CustomBlocklistCard({
             onClick={(e: React.MouseEvent) => { e.stopPropagation(); deleteBlocklist(blocklist.id); }}
             className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
           >
-            Delete
+            <span className="hidden sm:inline">Delete</span>
+            <svg className="h-4 w-4 sm:hidden" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
           </Button>
         </div>
       </div>
@@ -896,7 +899,7 @@ function CreateBlocklistForm({ onClose }: { onClose: () => void }) {
       <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
         Create Custom Blocklist
       </h3>
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <input
           type="text"
           value={name}
@@ -945,40 +948,40 @@ export function BlocklistsPage() {
       <div className="flex gap-6">
         {/* Left: blocklists */}
         <div className="min-w-0 flex-1">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <div className="mb-6 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
                 Blocklists
               </h1>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {selected
-                  ? <><span className="font-semibold text-focus-500">{selected.display}</span> selected — click a card to add it</>
-                  : "Select an item on the right, then click a card."}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              {selected && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelected(null)}
-                  className="text-red-500"
+              <div className="flex items-center gap-3">
+                {selected && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelected(null)}
+                    className="text-red-500"
+                  >
+                    Cancel
+                  </Button>
+                )}
+                <Badge variant="info">{enabledCount} active</Badge>
+                <button
+                  type="button"
+                  onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+                  className="rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-100 lg:hidden dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                  title="Toggle suggestions panel"
                 >
-                  Cancel
-                </Button>
-              )}
-              <Badge variant="info">{enabledCount} active</Badge>
-              <button
-                type="button"
-                onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-                className="rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-100 lg:hidden dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
-                title="Toggle suggestions panel"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
             </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {selected
+                ? <><span className="font-semibold text-focus-500">{selected.display}</span> selected — click a card to add it</>
+                : <><span className="hidden lg:inline">Select an item on the right, then click a card.</span><span className="lg:hidden">Tap the + button to browse suggestions.</span></>}
+            </p>
           </div>
 
           {/* Built-in blocklists */}

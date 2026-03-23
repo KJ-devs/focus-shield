@@ -263,7 +263,7 @@ export function ProfilesPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
           Profiles
         </h1>
         {formMode.type === "closed" && (

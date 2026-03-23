@@ -21,7 +21,7 @@ export function CircularTimer({
   timeRemainingMs,
   totalDurationMs,
   sessionName,
-  size = 280,
+  size = 240,
 }: CircularTimerProps) {
   const strokeWidth = 10;
   const radius = (size - strokeWidth) / 2;

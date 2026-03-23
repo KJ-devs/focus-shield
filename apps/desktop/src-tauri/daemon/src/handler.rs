@@ -116,7 +116,20 @@ async fn handle_start_blocking(
 
     let mut blocking = state.blocking.write().await;
 
-    if blocking.active_session_id.is_some() {
+    // If the same session is already active, treat as idempotent success
+    if let Some(active_id) = &blocking.active_session_id {
+        if *active_id == payload.session_id {
+            log::info!("Session {} already active, treating as idempotent", payload.session_id);
+            return DaemonResponse::ok_with_data(
+                request.id,
+                &serde_json::json!({
+                    "processes_blocked": 0,
+                    "hosts_blocked": 0,
+                    "actions": [],
+                    "idempotent": true,
+                }),
+            );
+        }
         return DaemonResponse::err(
             request.id,
             "SESSION_ALREADY_ACTIVE",

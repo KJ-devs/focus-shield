@@ -63,7 +63,7 @@ export function TrendChart({ data, days }: TrendChartProps) {
   const tickInterval = days === 30 ? 6 : 14;
 
   return (
-    <div className="h-64 w-full">
+    <div className="h-48 w-full sm:h-64">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
           data={data}

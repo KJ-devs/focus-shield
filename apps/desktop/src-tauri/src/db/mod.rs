@@ -3,6 +3,7 @@
 //! Manages the database lifecycle: creation, migrations, and CRUD operations.
 //! The database is the single source of truth for all persistent data.
 
+use chrono::Datelike;
 use rusqlite::{Connection, params};
 use std::path::Path;
 use std::sync::Mutex;
@@ -452,6 +453,200 @@ impl StorageManager {
     }
 
     /// Calculate the current streak (consecutive days with at least one completed session).
+    // -----------------------------------------------------------------------
+    // Gamification — XP & achievements
+    // -----------------------------------------------------------------------
+
+    /// Record an XP gain event.
+    pub fn save_xp_gain(
+        &self,
+        profile_id: &str,
+        session_id: &str,
+        amount: i64,
+        reason: &str,
+    ) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let id = uuid::Uuid::new_v4().to_string();
+        let timestamp = chrono::Utc::now().timestamp_millis();
+        conn.execute(
+            "INSERT INTO xp_history (id, profile_id, session_id, amount, reason, timestamp)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![id, profile_id, session_id, amount, reason, timestamp],
+        ).map_err(|e| format!("Failed to save XP gain: {}", e))?;
+        Ok(())
+    }
+
+    /// Get or create user progress for a profile.
+    pub fn get_user_progress(&self, profile_id: &str) -> Result<UserProgressRecord, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let result = conn.query_row(
+            "SELECT profile_id, total_xp, achievement_progress, updated_at
+             FROM user_progress WHERE profile_id = ?1",
+            params![profile_id],
+            |row| Ok(UserProgressRecord {
+                profile_id: row.get(0)?,
+                total_xp: row.get(1)?,
+                achievement_progress: row.get(2)?,
+                updated_at: row.get(3)?,
+            }),
+        );
+
+        match result {
+            Ok(record) => Ok(record),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(UserProgressRecord {
+                profile_id: profile_id.to_string(),
+                total_xp: 0,
+                achievement_progress: "[]".to_string(),
+                updated_at: chrono::Utc::now().to_rfc3339(),
+            }),
+            Err(e) => Err(format!("Failed to get user progress: {}", e)),
+        }
+    }
+
+    /// Update user progress (upsert).
+    pub fn update_user_progress(
+        &self,
+        profile_id: &str,
+        total_xp: i64,
+        achievement_progress: &str,
+    ) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO user_progress (profile_id, total_xp, achievement_progress, updated_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(profile_id) DO UPDATE SET
+                total_xp = ?2,
+                achievement_progress = ?3,
+                updated_at = ?4",
+            params![profile_id, total_xp, achievement_progress, now],
+        ).map_err(|e| format!("Failed to update user progress: {}", e))?;
+        Ok(())
+    }
+
+    /// Get XP history for a profile.
+    pub fn get_xp_history(&self, profile_id: &str, limit: usize) -> Result<Vec<XPHistoryRecord>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, profile_id, session_id, amount, reason, timestamp
+             FROM xp_history WHERE profile_id = ?1
+             ORDER BY timestamp DESC LIMIT ?2"
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let rows = stmt.query_map(params![profile_id, limit as i64], |row| {
+            Ok(XPHistoryRecord {
+                id: row.get(0)?,
+                profile_id: row.get(1)?,
+                session_id: row.get(2)?,
+                amount: row.get(3)?,
+                reason: row.get(4)?,
+                timestamp: row.get(5)?,
+            })
+        }).map_err(|e| format!("Query failed: {}", e))?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row.map_err(|e| format!("Row parse error: {}", e))?);
+        }
+        Ok(results)
+    }
+
+    /// Record a streak freeze.
+    pub fn record_streak_freeze(&self, profile_id: &str) -> Result<bool, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+        let id = uuid::Uuid::new_v4().to_string();
+        let result = conn.execute(
+            "INSERT OR IGNORE INTO streak_freezes (id, profile_id, date) VALUES (?1, ?2, ?3)",
+            params![id, profile_id, today],
+        ).map_err(|e| format!("Failed to record streak freeze: {}", e))?;
+        Ok(result > 0)
+    }
+
+    /// Count streak freezes used this ISO week.
+    pub fn get_freezes_this_week(&self, profile_id: &str) -> Result<i64, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let today = chrono::Local::now().naive_local().date();
+        let weekday = today.weekday().num_days_from_monday();
+        let week_start = today - chrono::Duration::days(weekday as i64);
+        let week_end = week_start + chrono::Duration::days(6);
+        let start_str = week_start.format("%Y-%m-%d").to_string();
+        let end_str = week_end.format("%Y-%m-%d").to_string();
+
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM streak_freezes
+             WHERE profile_id = ?1 AND date >= ?2 AND date <= ?3",
+            params![profile_id, start_str, end_str],
+            |row| row.get(0),
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        Ok(count)
+    }
+
+    /// Get the longest streak ever achieved.
+    pub fn get_longest_streak(&self, profile_id: &str) -> Result<i64, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let mut stmt = conn.prepare(
+            "SELECT date FROM daily_stats
+             WHERE profile_id = ?1 AND sessions_completed > 0
+             ORDER BY date ASC"
+        ).map_err(|e| format!("Query failed: {}", e))?;
+
+        let dates: Vec<String> = stmt.query_map(params![profile_id], |row| {
+            row.get(0)
+        })
+        .map_err(|e| format!("Query failed: {}", e))?
+        .filter_map(|r| r.ok())
+        .collect();
+
+        if dates.is_empty() {
+            return Ok(0);
+        }
+
+        let mut longest = 1i64;
+        let mut current = 1i64;
+
+        for i in 1..dates.len() {
+            let prev = chrono::NaiveDate::parse_from_str(&dates[i - 1], "%Y-%m-%d")
+                .map_err(|e| format!("Date parse error: {}", e))?;
+            let curr = chrono::NaiveDate::parse_from_str(&dates[i], "%Y-%m-%d")
+                .map_err(|e| format!("Date parse error: {}", e))?;
+
+            if (curr - prev).num_days() == 1 {
+                current += 1;
+                if current > longest {
+                    longest = current;
+                }
+            } else {
+                current = 1;
+            }
+        }
+
+        Ok(longest)
+    }
+
+    /// Get count of total sessions completed.
+    pub fn get_total_sessions_completed(&self, profile_id: &str) -> Result<i64, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let count: i64 = conn.query_row(
+            "SELECT COALESCE(SUM(sessions_completed), 0) FROM daily_stats WHERE profile_id = ?1",
+            params![profile_id],
+            |row| row.get(0),
+        ).map_err(|e| format!("Query failed: {}", e))?;
+        Ok(count)
+    }
+
+    /// Get total focus hours.
+    pub fn get_total_focus_hours(&self, profile_id: &str) -> Result<f64, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let minutes: f64 = conn.query_row(
+            "SELECT COALESCE(SUM(total_focus_minutes), 0) FROM daily_stats WHERE profile_id = ?1",
+            params![profile_id],
+            |row| row.get(0),
+        ).map_err(|e| format!("Query failed: {}", e))?;
+        Ok(minutes / 60.0)
+    }
+
     pub fn calculate_streak(&self, profile_id: &str) -> Result<i64, String> {
         let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
         let today = chrono::Local::now().format("%Y-%m-%d").to_string();
@@ -538,4 +733,24 @@ pub struct DailyStatsRecord {
     pub top_distractors: String,
     pub average_focus_score: f64,
     pub streak_day: i64,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserProgressRecord {
+    pub profile_id: String,
+    pub total_xp: i64,
+    pub achievement_progress: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct XPHistoryRecord {
+    pub id: String,
+    pub profile_id: String,
+    pub session_id: String,
+    pub amount: i64,
+    pub reason: String,
+    pub timestamp: i64,
 }

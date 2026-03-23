@@ -66,7 +66,7 @@ export function PeakHours({ data }: PeakHoursProps) {
   const tickValues = [0, 6, 12, 18];
 
   return (
-    <div className="h-64 w-full">
+    <div className="h-48 w-full sm:h-64">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}

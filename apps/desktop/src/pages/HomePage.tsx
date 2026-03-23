@@ -1,10 +1,12 @@
 import { type ReactNode, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSessionStore } from "@/stores/session-store";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { Badge } from "@/components/ui/Badge";
 import { ExtensionBanner } from "@/components/settings/ExtensionInstall";
+import { DailyChallenges } from "@/components/gamification/DailyChallenges";
 import {
   storageGetRecentSessions,
   type RecentSession as RecentSessionData,
@@ -19,9 +21,9 @@ function getSessionDisplayName(sessionId: string): string {
 
 function getGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning!";
-  if (hour < 18) return "Good afternoon!";
-  return "Good evening!";
+  if (hour < 12) return "home.goodMorning";
+  if (hour < 18) return "home.goodAfternoon";
+  return "home.goodEvening";
 }
 
 function formatMinutesToDisplay(minutes: number): string {
@@ -95,12 +97,13 @@ function formatMinutesToDuration(minutes: number): string {
 }
 
 function QuickStartSection() {
+  const { t } = useTranslation();
   const startQuickSession = useSessionStore((s) => s.startQuickSession);
 
   return (
     <div>
       <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-        Quick Start
+        {t("home.quickStart")}
       </h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {QUICK_PRESETS.map((preset) => {
@@ -137,7 +140,7 @@ function QuickStartSection() {
                   );
                 }}
               >
-                Start
+                {t("common.start")}
               </Button>
             </Card>
           );
@@ -148,6 +151,7 @@ function QuickStartSection() {
 }
 
 function ActiveSessionSection() {
+  const { t } = useTranslation();
   const currentSessionName = useSessionStore((s) => s.currentSessionName);
   const timeRemainingMs = useSessionStore((s) => s.timeRemainingMs);
   const distractionCount = useSessionStore((s) => s.distractionCount);
@@ -155,56 +159,57 @@ function ActiveSessionSection() {
 
   return (
     <Card data-testid="active-session-widget" className="flex flex-col items-center gap-4">
-      <Badge variant="success">Session Active</Badge>
+      <Badge variant="success">{t("home.sessionActive_badge")}</Badge>
       <h2 data-testid="session-name" className="text-xl font-semibold text-gray-900 dark:text-white">
         {currentSessionName}
       </h2>
-      <div data-testid="session-timer" className="text-6xl font-mono font-bold text-focus-600 dark:text-focus-400">
+      <div data-testid="session-timer" className="text-4xl font-mono font-bold text-focus-600 sm:text-6xl dark:text-focus-400">
         {formatMsToTimer(timeRemainingMs)}
       </div>
       <p data-testid="distraction-count" className="text-sm text-gray-500 dark:text-gray-400">
-        {distractionCount} distraction{distractionCount !== 1 ? "s" : ""}{" "}
-        blocked
+        {distractionCount} {distractionCount !== 1 ? t("home.distractions") : t("home.distraction")}{" "}
+        {t("home.blocked")}
       </p>
       <Button data-testid="stop-session-btn" variant="danger" onClick={() => void stopSession()}>
-        Stop Session
+        {t("home.stopSession")}
       </Button>
     </Card>
   );
 }
 
 function TodayStatsSection() {
+  const { t } = useTranslation();
   const todayStats = useSessionStore((s) => s.todayStats);
 
   return (
     <div>
       <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-        Today&apos;s Stats
+        {t("home.todayStats")}
       </h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Focus Time"
+          label={t("home.focusTime")}
           value={formatMinutesToDisplay(todayStats.focusMinutes)}
           icon={"\u23F1\uFE0F"}
           trend="up"
           data-testid="stat-focus-time"
         />
         <StatCard
-          label="Sessions"
+          label={t("home.sessions")}
           value={todayStats.sessionsCompleted}
           icon={"\u2705"}
           trend="neutral"
           data-testid="stat-sessions"
         />
         <StatCard
-          label="Distractions Blocked"
+          label={t("home.distractionsBlocked")}
           value={todayStats.distractionsBlocked}
           icon={"\uD83D\uDEE1\uFE0F"}
           trend="down"
           data-testid="stat-distractions"
         />
         <StatCard
-          label="Streak"
+          label={t("home.streak")}
           value={`${todayStats.currentStreak} days`}
           icon={"\uD83D\uDD25"}
           trend="up"
@@ -216,6 +221,7 @@ function TodayStatsSection() {
 }
 
 function RecentActivitySection() {
+  const { t } = useTranslation();
   const [recentSessions, setRecentSessions] = useState<RecentSessionData[]>([]);
 
   useEffect(() => {
@@ -236,10 +242,10 @@ function RecentActivitySection() {
     return (
       <div>
         <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-          Recent Activity
+          {t("home.recentActivity")}
         </h2>
         <Card className="p-6 text-center text-gray-500 dark:text-gray-400">
-          No sessions yet. Start your first focus session!
+          {t("home.noSessionsYet")}
         </Card>
       </div>
     );
@@ -248,7 +254,7 @@ function RecentActivitySection() {
   return (
     <div>
       <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-        Recent Activity
+        {t("home.recentActivity")}
       </h2>
       <Card data-testid="recent-activity-list" className="divide-y divide-gray-100 dark:divide-gray-700 p-0">
         {recentSessions.map((session) => (
@@ -268,7 +274,7 @@ function RecentActivitySection() {
             <Badge
               variant={session.status === "completed" ? "success" : "warning"}
             >
-              {session.status === "completed" ? "Completed" : "Aborted"}
+              {session.status === "completed" ? t("home.completed") : t("home.aborted")}
             </Badge>
           </div>
         ))}
@@ -278,16 +284,17 @@ function RecentActivitySection() {
 }
 
 export function HomePage() {
+  const { t } = useTranslation();
   const isSessionActive = useSessionStore((s) => s.isSessionActive);
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <div className="animate-[fadeSlideIn_0.4s_ease-out]">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          {getGreeting()}
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+          {t(getGreeting())}
         </h1>
         <p className="mt-1 text-gray-500 dark:text-gray-400">
-          {isSessionActive ? "Session active!" : "Ready to focus?"}
+          {isSessionActive ? t("home.sessionActive") : t("home.readyToFocus")}
         </p>
       </div>
 
@@ -296,6 +303,8 @@ export function HomePage() {
       {isSessionActive ? <ActiveSessionSection /> : <QuickStartSection />}
 
       <TodayStatsSection />
+
+      {!isSessionActive && <DailyChallenges />}
 
       <RecentActivitySection />
     </div>

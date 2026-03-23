@@ -56,7 +56,7 @@ const BUILTIN_BLOCKLISTS: BlocklistData[] = [
       "*.weibo.com",
     ],
     processes: [
-      { name: "discord", aliases: ["Discord.exe", "discord-ptb", "discord-canary"], action: "kill" },
+      { name: "discord", aliases: ["Discord.exe", "discord-ptb", "discord-canary", "DiscordPTB.exe", "DiscordCanary.exe"], action: "kill" },
       { name: "slack", aliases: ["Slack.exe", "slack-desktop"], action: "kill" },
       { name: "telegram", aliases: ["Telegram.exe", "telegram-desktop"], action: "kill" },
       { name: "whatsapp", aliases: ["WhatsApp.exe", "whatsapp-desktop"], action: "kill" },

@@ -44,6 +44,13 @@ pub fn run() {
             commands::storage_get_recent_sessions,
             commands::storage_get_stats_range,
             commands::storage_get_streak,
+            commands::storage_get_user_progress,
+            commands::storage_update_user_progress,
+            commands::storage_save_xp_gain,
+            commands::storage_get_xp_history,
+            commands::storage_get_streak_info,
+            commands::storage_use_streak_freeze,
+            commands::storage_get_game_stats,
         ])
         .setup(|app| {
             // Initialize SQLite storage

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useSessionStore, TOKEN_CONFIG } from "@/stores/session-store";
 import type { SessionConfig } from "@/stores/session-store";
@@ -23,6 +24,7 @@ function formatGroupedToken(token: string): string {
 // ---------------------------------------------------------------------------
 
 function ConfigureStep() {
+  const { t } = useTranslation();
   const [selectedPreset, setSelectedPreset] = useState<PresetData | null>(null);
   const [lockLevel, setLockLevel] = useState<LockLevel>(2);
   const setConfig = useSessionStore((s) => s.setConfig);
@@ -47,18 +49,18 @@ function ConfigureStep() {
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Launch Session
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+          {t("launcher.title")}
         </h1>
         <p className="mt-1 text-gray-500 dark:text-gray-400">
-          Choose a preset and lock level, then start your focus session.
+          {t("launcher.subtitle")}
         </p>
       </div>
 
       {/* Preset grid */}
       <div>
         <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-          Choose a Preset
+          {t("launcher.choosePreset")}
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {PRESETS.map((preset) => {
@@ -115,12 +117,12 @@ function ConfigureStep() {
       {/* Lock level selector */}
       <div>
         <h2 className="mb-1 text-lg font-semibold text-gray-900 dark:text-white">
-          Lock Level
+          {t("launcher.lockLevel")}
         </h2>
         <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-          How hard it is to quit the session early
+          {t("launcher.lockLevelDesc")}
         </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {LOCK_LEVELS.map((level) => {
             const config = TOKEN_CONFIG[level];
             const isSelected = lockLevel === level;
@@ -162,7 +164,7 @@ function ConfigureStep() {
           className="px-12"
           data-testid="launch-session-btn"
         >
-          Launch Session
+          {t("launcher.launchSession")}
         </Button>
       </div>
     </div>
@@ -200,7 +202,7 @@ function TokenDisplayStep() {
   // Nuclear mode (level 5) — brief message before auto-start
   if (config.lockLevel === 5) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6">
+      <div className="flex min-h-[40vh] sm:min-h-[60vh] flex-col items-center justify-center gap-6">
         <Card className="flex max-w-md flex-col items-center gap-6 py-10 text-center">
           <span className="text-6xl">{"\u2622\uFE0F"}</span>
           <h2 className="text-2xl font-bold text-red-600 dark:text-red-400">
@@ -215,7 +217,7 @@ function TokenDisplayStep() {
   }
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6">
+    <div className="flex min-h-[40vh] sm:min-h-[60vh] flex-col items-center justify-center gap-6">
       <Card className="flex max-w-xl flex-col items-center gap-6 py-10 text-center">
         <div className="flex items-center gap-2">
           <span className="text-3xl">{"\uD83D\uDD11"}</span>
@@ -236,8 +238,8 @@ function TokenDisplayStep() {
 
         {/* Token display */}
         {token && (
-          <div data-testid="token-display" className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-8 py-6 dark:border-gray-600 dark:bg-gray-900">
-            <p data-testid="token-value" className="font-mono text-2xl font-bold tracking-widest text-gray-900 dark:text-white">
+          <div data-testid="token-display" className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-4 sm:px-8 sm:py-6 dark:border-gray-600 dark:bg-gray-900">
+            <p data-testid="token-value" className="break-all font-mono text-base font-bold tracking-widest text-gray-900 sm:text-2xl dark:text-white">
               {formatGroupedToken(token)}
             </p>
           </div>

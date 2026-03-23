@@ -10,6 +10,8 @@ import { ExtensionInstall } from "@/components/settings/ExtensionInstall";
 import { useThemeStore } from "@/stores/theme-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { toastInfo } from "@/stores/notification-store";
+import { useTranslation } from "react-i18next";
+import { LANGUAGES, changeLanguage } from "@/i18n";
 
 // ---------------------------------------------------------------------------
 // Section divider helper
@@ -28,6 +30,7 @@ function SectionHeading({ title }: { title: string }) {
 // ---------------------------------------------------------------------------
 
 export function SettingsPage() {
+  const { t, i18n } = useTranslation();
   const { theme, toggleTheme } = useThemeStore();
 
   const {
@@ -54,20 +57,44 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="mb-6 text-3xl font-bold text-gray-900 dark:text-white">
-        Settings
+      <h1 className="mb-6 text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+        {t("settings.title")}
       </h1>
 
       <div className="space-y-6">
         {/* ── Appearance ──────────────────────────────────────────────── */}
         <Card>
-          <SectionHeading title="Appearance" />
+          <SectionHeading title={t("settings.appearance")} />
           <Toggle
             checked={theme === "dark"}
             onChange={toggleTheme}
             label="Dark Mode"
             description={`Currently using ${theme} mode`}
           />
+
+          {/* Language */}
+          <div className="mt-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              {t("settings.language")}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {LANGUAGES.map((lang) => (
+                <button
+                  key={lang.code}
+                  type="button"
+                  onClick={() => changeLanguage(lang.code)}
+                  className={`flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-medium transition-colors ${
+                    i18n.language === lang.code
+                      ? "border-focus-500 bg-focus-50 text-focus-700 dark:border-focus-400 dark:bg-focus-900/20 dark:text-focus-400"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500"
+                  }`}
+                >
+                  <span>{lang.flag}</span>
+                  <span>{lang.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </Card>
 
         {/* ── Browser Extension ──────────────────────────────────────── */}

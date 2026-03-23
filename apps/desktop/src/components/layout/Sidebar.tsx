@@ -1,8 +1,10 @@
 import { type ReactNode, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
 import { useThemeStore } from "@/stores/theme-store";
 import { ProfileSwitcher } from "@/components/profiles/ProfileSwitcher";
 import { daemonHealthCheck, daemonExtensionStatus } from "@/tauri/daemon";
+import { LevelBadge } from "@/components/gamification/LevelBadge";
 
 interface NavItem {
   to: string;
@@ -102,20 +104,33 @@ function ShieldLogo() {
   );
 }
 
+function IconTrophy() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3h8v6a4 4 0 01-8 0V3z" />
+      <path d="M6 5H3.5a1 1 0 00-1 1v1a3 3 0 003 3H6M14 5h2.5a1 1 0 011 1v1a3 3 0 01-3 3H14" />
+      <path d="M10 13v3M7 16h6" />
+    </svg>
+  );
+}
+
 const NAV_ITEMS: NavItem[] = [
-  { to: "/", label: "Home", icon: <IconHome /> },
-  { to: "/sessions", label: "Sessions", icon: <IconPlay /> },
-  { to: "/blocklists", label: "Blocklists", icon: <IconShieldNav /> },
-  { to: "/analytics", label: "Analytics", icon: <IconChart /> },
-  { to: "/profiles", label: "Profiles", icon: <IconUser /> },
-  { to: "/settings", label: "Settings", icon: <IconSettings /> },
+  { to: "/", label: "nav.home", icon: <IconHome /> },
+  { to: "/sessions", label: "nav.sessions", icon: <IconPlay /> },
+  { to: "/blocklists", label: "nav.blocklists", icon: <IconShieldNav /> },
+  { to: "/analytics", label: "nav.analytics", icon: <IconChart /> },
+  { to: "/achievements", label: "nav.achievements", icon: <IconTrophy /> },
+  { to: "/profiles", label: "nav.profiles", icon: <IconUser /> },
+  { to: "/settings", label: "nav.settings", icon: <IconSettings /> },
 ];
 
-function NavItemLink({ item }: { item: NavItem }) {
+function NavItemLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
+  const { t } = useTranslation();
   return (
     <NavLink
       to={item.to}
       end={item.to === "/"}
+      onClick={onNavigate}
       className={({ isActive }) =>
         `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
           isActive
@@ -132,7 +147,7 @@ function NavItemLink({ item }: { item: NavItem }) {
           <span className={`transition-colors duration-200 ${isActive ? "text-focus-600 dark:text-focus-400" : "text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300"}`}>
             {item.icon}
           </span>
-          <span>{item.label}</span>
+          <span>{t(item.label)}</span>
         </>
       )}
     </NavLink>
@@ -188,18 +203,19 @@ function useProtectionStatus(): ProtectionStatus {
 }
 
 function DaemonStatusBadge() {
+  const { t } = useTranslation();
   const { daemon, extension } = useProtectionStatus();
 
   const daemonConfig = {
-    checking: { color: "bg-gray-400", label: "System protection: checking..." },
-    connected: { color: "bg-emerald-500", label: "System protection: active" },
-    disconnected: { color: "bg-red-500", label: "System protection: inactive" },
+    checking: { color: "bg-gray-400", label: `${t("daemon.systemProtection")}: ${t("daemon.checking")}` },
+    connected: { color: "bg-emerald-500", label: `${t("daemon.systemProtection")}: ${t("daemon.active")}` },
+    disconnected: { color: "bg-red-500", label: `${t("daemon.systemProtection")}: ${t("daemon.inactive")}` },
   }[daemon];
 
   const extensionConfig = {
-    checking: { color: "bg-gray-400", label: "Extension: checking..." },
-    connected: { color: "bg-emerald-500", label: "Extension: connected" },
-    disconnected: { color: "bg-amber-500", label: "Extension: not connected" },
+    checking: { color: "bg-gray-400", label: `${t("daemon.extension")}: ${t("daemon.checking")}` },
+    connected: { color: "bg-emerald-500", label: `${t("daemon.extension")}: ${t("daemon.connected")}` },
+    disconnected: { color: "bg-amber-500", label: `${t("daemon.extension")}: ${t("daemon.notConnected")}` },
   }[extension];
 
   return (
@@ -216,10 +232,16 @@ function DaemonStatusBadge() {
   );
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  open?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ open, onClose }: SidebarProps) {
+  const { t } = useTranslation();
   const { theme, toggleTheme } = useThemeStore();
 
-  return (
+  const sidebarContent = (
     <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
       <div className="flex items-center gap-3 px-6 py-5">
         <ShieldLogo />
@@ -232,9 +254,13 @@ export function Sidebar() {
         <ProfileSwitcher />
       </div>
 
+      <div className="border-b border-gray-200 dark:border-gray-800">
+        <LevelBadge />
+      </div>
+
       <nav className="flex-1 space-y-0.5 px-3 py-2">
         {NAV_ITEMS.map((item) => (
-          <NavItemLink key={item.to} item={item} />
+          <NavItemLink key={item.to} item={item} onNavigate={onClose} />
         ))}
       </nav>
 
@@ -247,9 +273,31 @@ export function Sidebar() {
           <span className="text-gray-400 transition-colors duration-200 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300">
             {theme === "light" ? <IconMoon /> : <IconSun />}
           </span>
-          <span>{theme === "light" ? "Dark mode" : "Light mode"}</span>
+          <span>{theme === "light" ? t("settings.darkMode") : t("settings.lightMode")}</span>
         </button>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Desktop: static sidebar */}
+      <div className="hidden lg:block">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile: overlay sidebar */}
+      {open && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={onClose}
+          />
+          <div className="relative z-50 animate-[slideInLeft_0.2s_ease-out]">
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+    </>
   );
 }

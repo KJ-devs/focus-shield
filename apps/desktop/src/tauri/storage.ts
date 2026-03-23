@@ -82,3 +82,74 @@ export async function storageGetStatsRange(
 export async function storageGetStreak(): Promise<number> {
   return invoke("storage_get_streak");
 }
+
+// ---------------------------------------------------------------------------
+// Gamification IPC
+// ---------------------------------------------------------------------------
+
+export interface UserProgressData {
+  profileId: string;
+  totalXp: number;
+  achievementProgress: string; // JSON array
+  updatedAt: string;
+}
+
+export interface XPHistoryEntry {
+  id: string;
+  profileId: string;
+  sessionId: string;
+  amount: number;
+  reason: string;
+  timestamp: number;
+}
+
+export interface StreakInfoData {
+  currentStreak: number;
+  longestStreak: number;
+  freezeAvailable: boolean;
+  freezesUsedThisWeek: number;
+}
+
+export interface GameStatsData {
+  totalSessionsCompleted: number;
+  totalFocusHours: number;
+  currentStreak: number;
+  longestStreak: number;
+}
+
+export async function storageGetUserProgress(): Promise<UserProgressData> {
+  return invoke("storage_get_user_progress");
+}
+
+export async function storageUpdateUserProgress(
+  totalXp: number,
+  achievementProgress: string,
+): Promise<void> {
+  return invoke("storage_update_user_progress", { totalXp, achievementProgress });
+}
+
+export async function storageSaveXpGain(
+  sessionId: string,
+  amount: number,
+  reason: string,
+): Promise<void> {
+  return invoke("storage_save_xp_gain", { sessionId, amount, reason });
+}
+
+export async function storageGetXpHistory(
+  limit?: number,
+): Promise<XPHistoryEntry[]> {
+  return invoke("storage_get_xp_history", { limit: limit ?? null });
+}
+
+export async function storageGetStreakInfo(): Promise<StreakInfoData> {
+  return invoke("storage_get_streak_info");
+}
+
+export async function storageUseStreakFreeze(): Promise<boolean> {
+  return invoke("storage_use_streak_freeze");
+}
+
+export async function storageGetGameStats(): Promise<GameStatsData> {
+  return invoke("storage_get_game_stats");
+}

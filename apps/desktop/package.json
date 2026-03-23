@@ -18,13 +18,16 @@
   },
   "dependencies": {
     "@focus-shield/shared-types": "workspace:*",
+    "@focus-shield/storage": "workspace:*",
     "@focus-shield/ui-components": "workspace:*",
     "@tauri-apps/api": "^2.2.0",
     "@tauri-apps/plugin-notification": "^2.2.0",
     "@tauri-apps/plugin-shell": "^2.2.0",
     "@tauri-apps/plugin-sql": "^2.2.0",
+    "i18next": "^25.10.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-i18next": "^16.6.1",
     "react-router-dom": "^7.0.0",
     "recharts": "^2.15.0",
     "zustand": "^5.0.0"

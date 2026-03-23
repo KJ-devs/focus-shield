@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SessionReview as SessionReviewData } from "@/stores/session-store";
 import { useSessionStore } from "@/stores/session-store";
+import { useGamificationStore } from "@/stores/gamification-store";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -126,33 +127,20 @@ function LevelProgress({ currentXp, xpToNextLevel, level }: LevelProgressProps) 
 // Achievement Notification
 // ---------------------------------------------------------------------------
 
-interface MockAchievement {
+interface ReviewAchievement {
   name: string;
   description: string;
 }
 
-function getNewAchievements(review: SessionReviewData): MockAchievement[] {
-  const achievements: MockAchievement[] = [];
-
-  if (review.focusScore === 100 && review.distractionCount === 0) {
-    achievements.push({
-      name: "Zero Temptation",
-      description: "Completed a session with no distraction attempts",
-    });
-  }
-
-  const durationMinutes = Math.round(review.actualFocusMs / 60_000);
-  if (durationMinutes >= 180 && review.completedNormally) {
-    achievements.push({
-      name: "Marathon",
-      description: "Completed a 3-hour session without interruption",
-    });
-  }
-
-  return achievements;
+function getNewAchievements(_review: SessionReviewData): ReviewAchievement[] {
+  const gamStore = useGamificationStore.getState();
+  return gamStore.newlyUnlocked.map((a) => ({
+    name: a.name,
+    description: a.description,
+  }));
 }
 
-function AchievementNotification({ achievement }: { achievement: MockAchievement }) {
+function AchievementNotification({ achievement }: { achievement: ReviewAchievement }) {
   return (
     <div className="flex items-center gap-3 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 dark:border-yellow-700 dark:bg-yellow-900/20">
       <span className="text-2xl">&#x1F3C6;</span>
@@ -172,22 +160,17 @@ function AchievementNotification({ achievement }: { achievement: MockAchievement
 // Main Component
 // ---------------------------------------------------------------------------
 
-function deriveGamification(review: SessionReviewData) {
+function deriveGamification(_review: SessionReviewData) {
+  const gamStore = useGamificationStore.getState();
   const todayStats = useSessionStore.getState().todayStats;
-  const focusMinutes = Math.round(review.actualFocusMs / 60_000);
-  const lockLevel = useSessionStore.getState().config?.lockLevel ?? 1;
-  const xpGained = Math.round(focusMinutes * lockLevel * 2);
-  const totalXp = Math.round(todayStats.focusMinutes * 2);
-  const xpPerLevel = 500;
-  const level = Math.max(1, Math.floor(totalXp / xpPerLevel) + 1);
-  const currentXpInLevel = totalXp % xpPerLevel;
+  const lastXp = gamStore.lastXpGain?.amount ?? 0;
 
   return {
-    level,
-    currentXp: currentXpInLevel,
-    xpToNextLevel: xpPerLevel,
-    currentStreak: todayStats.currentStreak,
-    xpGained,
+    level: gamStore.levelInfo.level,
+    currentXp: gamStore.levelInfo.currentXP - gamStore.levelInfo.xpForCurrentLevel,
+    xpToNextLevel: gamStore.levelInfo.xpForNextLevel - gamStore.levelInfo.xpForCurrentLevel,
+    currentStreak: gamStore.currentStreak || todayStats.currentStreak,
+    xpGained: lastXp,
   };
 }
 
@@ -216,7 +199,7 @@ export function SessionReview({ review, onDismiss }: SessionReviewProps) {
   };
 
   return (
-    <div data-testid="session-review" className="mx-auto w-full max-w-lg">
+    <div data-testid="session-review" className="mx-auto w-full sm:max-w-lg">
       <Card className="flex flex-col items-center gap-6 py-8">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
           Session Complete

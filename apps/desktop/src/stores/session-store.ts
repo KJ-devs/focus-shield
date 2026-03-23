@@ -183,7 +183,30 @@ async function activateBlocking(sessionRunId: string): Promise<void> {
   try {
     const { domains, processes } = getEnabledBlockingRules();
     if (domains.length === 0 && processes.length === 0) return;
-    await daemonStartBlocking(sessionRunId, domains, processes);
+
+    try {
+      await daemonStartBlocking(sessionRunId, domains, processes);
+    } catch (firstErr: unknown) {
+      // If daemon has a stale session, clear it and retry
+      const errMsg = firstErr instanceof Error ? firstErr.message : String(firstErr);
+      if (errMsg.includes("SESSION_ALREADY_ACTIVE")) {
+        // Get the stale session ID from daemon status and stop it
+        try {
+          const { daemonStatus } = await import("@/tauri/daemon");
+          const status = await daemonStatus();
+          if (status.activeSessionId) {
+            await daemonStopBlocking(status.activeSessionId);
+          }
+        } catch {
+          // Ignore cleanup errors
+        }
+        // Retry after clearing
+        await daemonStartBlocking(sessionRunId, domains, processes);
+      } else {
+        throw firstErr;
+      }
+    }
+
     activeBlockingRunId = sessionRunId;
   } catch {
     toastWarning("System blocking unavailable. Browser extension blocking is still active.");
@@ -256,6 +279,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { config } = get();
     if (!config) return;
 
+    // Clean up any lingering blocking from previous session
+    const prevRunId = get().sessionRunId;
+    if (prevRunId && activeBlockingRunId === prevRunId) {
+      void deactivateBlocking(prevRunId);
+    }
+
     // Dismiss any lingering session (token-display, completed, etc.)
     try { await sessionDismiss(); } catch { /* ignore if already idle */ }
 
@@ -276,8 +305,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           sessionRunId: result.snapshot.runId,
           tokenCountdown: result.snapshot.tokenCountdown,
           timeRemainingMs: result.snapshot.timeRemainingMs,
+          currentBlockIndex: 0,
+          distractionCount: 0,
+          startedAt: result.snapshot.startedAt,
+          isSessionActive: false,
+          currentSessionName: config.presetName,
           lastError: null,
         });
+
+        // Activate blocking immediately during token display
+        if (result.snapshot.runId) {
+          void activateBlocking(result.snapshot.runId);
+        }
       } else {
         // Level 5 or immediate start
         set({
@@ -590,10 +629,12 @@ export function initSessionListeners(): void {
 
   // Token display events
   void listen<TokenDisplayPayload>("session:token_display", (event) => {
+    const state = useSessionStore.getState();
     useSessionStore.setState({
       phase: "token-display",
       token: event.payload.token,
       tokenCountdown: event.payload.countdown,
+      currentSessionName: state.config?.presetName ?? state.currentSessionName,
     });
   });
 
@@ -661,6 +702,28 @@ async function persistSessionRun(
 
     // Refresh today stats after persisting
     await loadTodayStats();
+
+    // Record XP and check achievements
+    try {
+      const { useGamificationStore } = await import("@/stores/gamification-store");
+      const lockLevel = state.config?.lockLevel ?? 1;
+      const startHour = state.startedAt
+        ? new Date(state.startedAt).getHours()
+        : new Date().getHours();
+      const endHour = new Date().getHours();
+
+      await useGamificationStore.getState().recordSessionXP(
+        runId,
+        review.actualFocusMs / 60_000,
+        lockLevel as LockLevel,
+        review.completedNormally,
+        review.distractionCount,
+        startHour,
+        endHour,
+      );
+    } catch {
+      // Gamification update failed — non-critical
+    }
   } catch {
     toastError("Failed to save session data. Your session was completed but stats may be incomplete.");
   }

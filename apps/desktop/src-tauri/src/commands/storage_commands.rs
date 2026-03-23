@@ -2,7 +2,7 @@
 //!
 //! All persistent data access goes through these commands.
 
-use crate::db::{DailyStatsRecord, SessionRunRecord, StorageManager};
+use crate::db::{DailyStatsRecord, SessionRunRecord, StorageManager, UserProgressRecord, XPHistoryRecord};
 use crate::error::FocusError;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -164,4 +164,125 @@ pub async fn storage_get_streak(
 ) -> Result<i64, FocusError> {
     storage.calculate_streak("default")
         .map_err(|e| FocusError::new("STORAGE_ERROR", e))
+}
+
+// ---------------------------------------------------------------------------
+// Gamification — user progress
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn storage_get_user_progress(
+    storage: State<'_, StorageManager>,
+) -> Result<UserProgressRecord, FocusError> {
+    storage.get_user_progress("default")
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))
+}
+
+#[tauri::command]
+pub async fn storage_update_user_progress(
+    total_xp: i64,
+    achievement_progress: String,
+    storage: State<'_, StorageManager>,
+) -> Result<(), FocusError> {
+    storage.update_user_progress("default", total_xp, &achievement_progress)
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))
+}
+
+#[tauri::command]
+pub async fn storage_save_xp_gain(
+    session_id: String,
+    amount: i64,
+    reason: String,
+    storage: State<'_, StorageManager>,
+) -> Result<(), FocusError> {
+    storage.save_xp_gain("default", &session_id, amount, &reason)
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))
+}
+
+#[tauri::command]
+pub async fn storage_get_xp_history(
+    limit: Option<usize>,
+    storage: State<'_, StorageManager>,
+) -> Result<Vec<XPHistoryRecord>, FocusError> {
+    storage.get_xp_history("default", limit.unwrap_or(20))
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))
+}
+
+// ---------------------------------------------------------------------------
+// Gamification — streak info
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreakInfoResponse {
+    pub current_streak: i64,
+    pub longest_streak: i64,
+    pub freeze_available: bool,
+    pub freezes_used_this_week: i64,
+}
+
+#[tauri::command]
+pub async fn storage_get_streak_info(
+    storage: State<'_, StorageManager>,
+) -> Result<StreakInfoResponse, FocusError> {
+    let current = storage.calculate_streak("default")
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))?;
+    let longest = storage.get_longest_streak("default")
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))?;
+    let freezes_used = storage.get_freezes_this_week("default")
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))?;
+
+    Ok(StreakInfoResponse {
+        current_streak: current,
+        longest_streak: std::cmp::max(current, longest),
+        freeze_available: freezes_used < 1,
+        freezes_used_this_week: freezes_used,
+    })
+}
+
+#[tauri::command]
+pub async fn storage_use_streak_freeze(
+    storage: State<'_, StorageManager>,
+) -> Result<bool, FocusError> {
+    let freezes_used = storage.get_freezes_this_week("default")
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))?;
+    if freezes_used >= 1 {
+        return Ok(false);
+    }
+    storage.record_streak_freeze("default")
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))
+}
+
+// ---------------------------------------------------------------------------
+// Gamification — aggregate stats for achievement evaluation
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GameStatsResponse {
+    pub total_sessions_completed: i64,
+    pub total_focus_hours: f64,
+    pub current_streak: i64,
+    pub longest_streak: i64,
+}
+
+#[tauri::command]
+pub async fn storage_get_game_stats(
+    storage: State<'_, StorageManager>,
+) -> Result<GameStatsResponse, FocusError> {
+    let sessions = storage.get_total_sessions_completed("default")
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))?;
+    let hours = storage.get_total_focus_hours("default")
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))?;
+    let current = storage.calculate_streak("default")
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))?;
+    let longest = storage.get_longest_streak("default")
+        .map_err(|e| FocusError::new("STORAGE_ERROR", e))?;
+
+    Ok(GameStatsResponse {
+        total_sessions_completed: sessions,
+        total_focus_hours: hours,
+        current_streak: current,
+        longest_streak: std::cmp::max(current, longest),
+    })
 }

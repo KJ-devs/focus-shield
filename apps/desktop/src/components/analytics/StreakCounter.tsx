@@ -2,6 +2,8 @@ interface StreakCounterProps {
   currentStreak: number;
   longestStreak: number;
   milestones: number[];
+  freezeAvailable?: boolean;
+  onUseFreeze?: () => void;
 }
 
 function getMilestoneStatus(
@@ -39,6 +41,8 @@ export function StreakCounter({
   currentStreak,
   longestStreak,
   milestones,
+  freezeAvailable,
+  onUseFreeze,
 }: StreakCounterProps) {
   const progressPercent = getProgressPercent(currentStreak, milestones);
   const nextMilestone = getNextMilestone(currentStreak, milestones);
@@ -54,8 +58,20 @@ export function StreakCounter({
         </div>
       </div>
 
-      <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-        Longest: <span className="font-semibold text-gray-700 dark:text-gray-300">{longestStreak} days</span>
+      <div className="flex items-center gap-3 text-center text-sm text-gray-500 dark:text-gray-400">
+        <span>
+          Longest: <span className="font-semibold text-gray-700 dark:text-gray-300">{longestStreak} days</span>
+        </span>
+        {freezeAvailable && onUseFreeze && currentStreak > 0 && (
+          <button
+            type="button"
+            onClick={onUseFreeze}
+            className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
+            title="Use a streak freeze to protect your streak today (1 per week)"
+          >
+            Freeze
+          </button>
+        )}
       </div>
 
       {nextMilestone && (

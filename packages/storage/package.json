@@ -9,6 +9,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./gamification/xp-system": {
+      "types": "./dist/gamification/xp-system.d.ts",
+      "import": "./dist/gamification/xp-system.js"
+    },
+    "./gamification/achievements": {
+      "types": "./dist/gamification/achievements.d.ts",
+      "import": "./dist/gamification/achievements.js"
+    },
+    "./gamification/streaks": {
+      "types": "./dist/gamification/streaks.d.ts",
+      "import": "./dist/gamification/streaks.js"
     }
   },
   "scripts": {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useSessionStore } from "@/stores/session-store";
 import { useBlocklistStore } from "@/stores/blocklist-store";
@@ -58,7 +59,7 @@ function BlockProgression() {
   const totalMinutes = config.blocks.reduce((sum, b) => sum + b.duration, 0);
 
   return (
-    <div className="w-full max-w-md">
+    <div className="w-full sm:max-w-md">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
           Block {currentBlockIndex + 1} of {config.blocks.length}
@@ -117,7 +118,7 @@ function BlockedItemsList() {
   if (allDomains.length === 0 && allProcesses.length === 0) return null;
 
   return (
-    <div className="w-full max-w-lg">
+    <div className="w-full sm:max-w-lg">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
@@ -216,7 +217,7 @@ function ActiveSessionView() {
       <BlockProgression />
 
       {/* Stats row */}
-      <div className="flex gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
         <div className="flex flex-col items-center rounded-xl bg-white px-6 py-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
           <span className="mb-1 text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
             Distractions
@@ -602,12 +603,13 @@ function TokenDisplayRedirect() {
 }
 
 export function SessionsPage() {
+  const { t } = useTranslation();
   const phase = useSessionStore((s) => s.phase);
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="mb-6 text-3xl font-bold text-gray-900 dark:text-white">
-        Sessions
+      <h1 className="mb-6 text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+        {t("session.title")}
       </h1>
 
       {phase === "active" && <ActiveSessionView />}

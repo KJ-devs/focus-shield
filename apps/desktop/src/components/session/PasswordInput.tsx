@@ -159,7 +159,7 @@ export function PasswordInput({ onSubmit, onCancel, lockLevel }: PasswordInputPr
   const isInputDisabled = entryCooldownRemaining > 0 || cooldownEndTime !== null;
 
   return (
-    <div className="mx-auto w-full max-w-md">
+    <div className="mx-auto w-full sm:max-w-md">
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <h3 className="mb-2 text-center text-xl font-bold text-gray-900 dark:text-white">
           Enter Unlock Token

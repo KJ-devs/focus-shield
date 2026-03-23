@@ -13,7 +13,7 @@ interface DistractionRadarProps {
 
 export function DistractionRadar({ data }: DistractionRadarProps) {
   return (
-    <div className="h-64 w-full">
+    <div className="h-48 w-full sm:h-64">
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
           <PolarGrid className="stroke-gray-200 dark:stroke-gray-700" />

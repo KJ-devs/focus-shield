@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -7,6 +8,7 @@ import { TrendChart } from "@/components/analytics/TrendChart";
 import { DistractionRadar } from "@/components/analytics/DistractionRadar";
 import { DailyTimeline } from "@/components/analytics/DailyTimeline";
 import { StreakCounter } from "@/components/analytics/StreakCounter";
+import { useGamificationStore } from "@/stores/gamification-store";
 import { PeakHours } from "@/components/analytics/PeakHours";
 import { Insights } from "@/components/analytics/Insights";
 import {
@@ -140,6 +142,7 @@ function statsToPeakHours(_stats: DailyStatsRecord[]): PeakHourPoint[] {
 }
 
 export function AnalyticsPage() {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>("30d");
   const [stats, setStats] = useState<DailyStatsRecord[]>([]);
   const [streak, setStreak] = useState(0);
@@ -209,8 +212,8 @@ export function AnalyticsPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Analytics
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-white">
+          {t("analytics.title")}
         </h1>
         <div className="flex rounded-lg border border-gray-200 dark:border-gray-700">
           {PERIOD_OPTIONS.map((option) => (
@@ -268,6 +271,8 @@ export function AnalyticsPage() {
             currentStreak={streak}
             longestStreak={longestStreak}
             milestones={MILESTONES}
+            freezeAvailable={useGamificationStore.getState().freezeAvailable}
+            onUseFreeze={() => void useGamificationStore.getState().useStreakFreeze()}
           />
         </Card>
       </div>

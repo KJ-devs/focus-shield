@@ -67,7 +67,7 @@ interface LockLevelSelectorProps {
 
 export function LockLevelSelector({ value, onChange }: LockLevelSelectorProps) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {LOCK_LEVELS.map((info) => {
         const isActive = value === info.level;
 

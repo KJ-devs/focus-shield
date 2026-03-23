@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { HomePage } from "@/pages/HomePage";
@@ -7,6 +8,7 @@ import { BlocklistsPage } from "@/pages/BlocklistsPage";
 import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { ProfilesPage } from "@/pages/ProfilesPage";
+import { AchievementsPage } from "@/pages/AchievementsPage";
 import { BuddyPage } from "@/pages/BuddyPage";
 import { ChallengePage } from "@/pages/ChallengePage";
 import { CoworkingPage } from "@/pages/CoworkingPage";
@@ -15,14 +17,15 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 function ComingSoonBanner({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   return (
     <div>
       <Card className="mb-6 flex items-center gap-3 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
         <span className="text-2xl">&#x1F6A7;</span>
         <div>
-          <p className="font-medium text-amber-800 dark:text-amber-300">Coming Soon</p>
+          <p className="font-medium text-amber-800 dark:text-amber-300">{t("common.comingSoon")}</p>
           <p className="text-sm text-amber-600 dark:text-amber-400">
-            This feature requires a sync server and is not yet available in the local-only version.
+            {t("common.comingSoonDesc")}
           </p>
         </div>
       </Card>
@@ -60,6 +63,7 @@ export function App() {
           <Route path="blocklists" element={<BlocklistsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="profiles" element={<ProfilesPage />} />
+          <Route path="achievements" element={<AchievementsPage />} />
           <Route path="buddy" element={<ComingSoonBanner><BuddyPage /></ComingSoonBanner>} />
           <Route path="challenges" element={<ComingSoonBanner><ChallengePage /></ComingSoonBanner>} />
           <Route path="coworking" element={<ComingSoonBanner><CoworkingPage /></ComingSoonBanner>} />

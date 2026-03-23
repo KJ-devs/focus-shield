@@ -13,10 +13,15 @@ export default {
           "0%": { opacity: "0", transform: "translateX(100%)" },
           "100%": { opacity: "1", transform: "translateX(0)" },
         },
+        slideInLeft: {
+          "0%": { opacity: "0", transform: "translateX(-100%)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
       },
       animation: {
         "fade-slide-in": "fadeSlideIn 0.4s ease-out",
         "slide-in-right": "slideInRight 0.3s ease-out",
+        "slide-in-left": "slideInLeft 0.2s ease-out",
       },
       colors: {
         focus: {
