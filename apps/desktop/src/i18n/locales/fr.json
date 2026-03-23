@@ -10,7 +10,8 @@
     "buddy": "Partenaires",
     "challenges": "D\u00e9fis",
     "coworking": "Coworking",
-    "knowledge": "Connaissances"
+    "knowledge": "Connaissances",
+    "study": "R\u00e9visions"
   },
   "common": {
     "start": "D\u00e9marrer",
@@ -265,6 +266,36 @@
     "noCardsGenerated": "G\u00e9n\u00e8re des flashcards depuis le document actuel.",
     "cardsGenerated": "cartes g\u00e9n\u00e9r\u00e9es",
     "cardsSaved": "Cartes enregistr\u00e9es"
+  },
+  "study": {
+    "title": "R\u00e9visions",
+    "deckSelector": "Choisis un paquet \u00e0 r\u00e9viser",
+    "noCards": "Aucune carte \u00e0 r\u00e9viser",
+    "noCardsDesc": "Cr\u00e9e des flashcards dans la section Connaissances et reviens quand elles seront dues.",
+    "goToKnowledge": "Aller aux Connaissances",
+    "cardsDue": "cartes dues",
+    "studyAll": "R\u00e9viser toutes les cartes dues",
+    "totalCards": "cartes",
+    "due": "dues",
+    "flipCard": "Retourner la carte",
+    "flipHint": "Clique ou appuie sur Espace pour retourner",
+    "showFront": "Montrer le recto",
+    "again": "\u00c0 revoir",
+    "hard": "Difficile",
+    "good": "Bien",
+    "easy": "Facile",
+    "complete": "R\u00e9vision termin\u00e9e !",
+    "completeDesc": "Bravo pour ta session de r\u00e9vision.",
+    "correct": "Correct",
+    "wrong": "Faux",
+    "accuracy": "Pr\u00e9cision",
+    "totalReviewed": "Cartes r\u00e9vis\u00e9es",
+    "timeTaken": "Temps pass\u00e9",
+    "studyAgain": "R\u00e9viser \u00e0 nouveau",
+    "backToKnowledge": "Retour aux Connaissances",
+    "flashcardMode": "Flashcards",
+    "quizMode": "Quiz",
+    "quizHint": "S\u00e9lectionne la bonne r\u00e9ponse"
   },
   "lockLevels": {
     "gentle": "Doux",

@@ -122,12 +122,23 @@ function IconBook() {
   );
 }
 
+function IconGraduationCap() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 3L2 7l8 4 8-4-8-4z" />
+      <path d="M4 9v4.5c0 1.5 2.7 3 6 3s6-1.5 6-3V9" />
+      <path d="M17 7v6" />
+    </svg>
+  );
+}
+
 const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "nav.home", icon: <IconHome /> },
   { to: "/sessions", label: "nav.sessions", icon: <IconPlay /> },
   { to: "/blocklists", label: "nav.blocklists", icon: <IconShieldNav /> },
   { to: "/analytics", label: "nav.analytics", icon: <IconChart /> },
   { to: "/knowledge", label: "nav.knowledge", icon: <IconBook /> },
+  { to: "/study", label: "nav.study", icon: <IconGraduationCap /> },
   { to: "/achievements", label: "nav.achievements", icon: <IconTrophy /> },
   { to: "/profiles", label: "nav.profiles", icon: <IconUser /> },
   { to: "/settings", label: "nav.settings", icon: <IconSettings /> },

@@ -10,7 +10,8 @@
     "buddy": "Buddies",
     "challenges": "Challenges",
     "coworking": "Coworking",
-    "knowledge": "Knowledge"
+    "knowledge": "Knowledge",
+    "study": "Study"
   },
   "common": {
     "start": "Start",
@@ -265,6 +266,36 @@
     "noCardsGenerated": "Generate flashcards from the current document.",
     "cardsGenerated": "cards generated",
     "cardsSaved": "Cards Saved"
+  },
+  "study": {
+    "title": "Study",
+    "deckSelector": "Choose a deck to study",
+    "noCards": "No cards due for review",
+    "noCardsDesc": "Create flashcards in the Knowledge section and come back when they are due.",
+    "goToKnowledge": "Go to Knowledge",
+    "cardsDue": "cards due",
+    "studyAll": "Study All Due Cards",
+    "totalCards": "cards",
+    "due": "due",
+    "flipCard": "Flip card",
+    "flipHint": "Click or press Space to flip",
+    "showFront": "Show front",
+    "again": "Again",
+    "hard": "Hard",
+    "good": "Good",
+    "easy": "Easy",
+    "complete": "Study Complete!",
+    "completeDesc": "Great job reviewing your cards.",
+    "correct": "Correct",
+    "wrong": "Wrong",
+    "accuracy": "Accuracy",
+    "totalReviewed": "Cards Reviewed",
+    "timeTaken": "Time Taken",
+    "studyAgain": "Study Again",
+    "backToKnowledge": "Back to Knowledge",
+    "flashcardMode": "Flashcards",
+    "quizMode": "Quiz",
+    "quizHint": "Select the correct answer"
   },
   "lockLevels": {
     "gentle": "Gentle",
