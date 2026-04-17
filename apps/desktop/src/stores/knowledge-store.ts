@@ -49,8 +49,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     try {
       const folders = await knowledgeListFolders();
       set({ folders });
-    } catch {
-      // IPC unavailable
+    } catch (err) {
+      console.error("[knowledge] loadFolders failed:", err);
     } finally {
       set({ isLoading: false });
     }
@@ -69,8 +69,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
         sortOrder,
       });
       await get().loadFolders();
-    } catch {
-      // IPC unavailable
+    } catch (err) {
+      console.error("[knowledge] createFolder failed:", err);
     }
   },
 
@@ -86,8 +86,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
         sortOrder: folder.sortOrder,
       });
       await get().loadFolders();
-    } catch {
-      // IPC unavailable
+    } catch (err) {
+      console.error("[knowledge] IPC error:", err);
     }
   },
 
@@ -99,8 +99,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
         set({ selectedFolderId: null, documents: [], selectedDocumentId: null });
       }
       await get().loadFolders();
-    } catch {
-      // IPC unavailable
+    } catch (err) {
+      console.error("[knowledge] IPC error:", err);
     }
   },
 
@@ -117,8 +117,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     try {
       const documents = await knowledgeListDocuments(folderId);
       set({ documents });
-    } catch {
-      // IPC unavailable
+    } catch (err) {
+      console.error("[knowledge] IPC error:", err);
     }
   },
 
@@ -137,8 +137,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
       });
       await get().loadDocuments(selectedFolderId);
       set({ selectedDocumentId: id });
-    } catch {
-      // IPC unavailable
+    } catch (err) {
+      console.error("[knowledge] IPC error:", err);
     }
   },
 
@@ -157,8 +157,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
       if (selectedFolderId) {
         await get().loadDocuments(selectedFolderId);
       }
-    } catch {
-      // IPC unavailable
+    } catch (err) {
+      console.error("[knowledge] IPC error:", err);
     }
   },
 
@@ -172,8 +172,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
       if (state.selectedFolderId) {
         await get().loadDocuments(state.selectedFolderId);
       }
-    } catch {
-      // IPC unavailable
+    } catch (err) {
+      console.error("[knowledge] IPC error:", err);
     }
   },
 

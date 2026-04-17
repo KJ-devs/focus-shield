@@ -1,5 +1,6 @@
 import {
   generateCardsFromDocument,
+  generateCardsWithFeedback,
   createManualCard,
 } from "../src/card-generator";
 
@@ -58,8 +59,9 @@ describe("generateCardsFromDocument", () => {
 
     const cards = generateCardsFromDocument(docId, folderId, content);
 
-    expect(cards).toHaveLength(1);
-    expect(cards[0]?.front).toBe("Has Content");
+    const qaCards = cards.filter((c) => c.type === "qa");
+    expect(qaCards).toHaveLength(1);
+    expect(qaCards[0]?.front).toBe("Has Content");
   });
 
   it("should generate both QA and cloze cards from a section with bold text", () => {
@@ -73,12 +75,69 @@ describe("generateCardsFromDocument", () => {
     expect(clozeCards).toHaveLength(1);
   });
 
-  it("should handle document with no headings", () => {
-    const content = "Just some plain text without any headings.";
+  it("should generate cards from documents without headings using default section", () => {
+    const content = "Just some plain text without any headings with a **bold term**.";
 
     const cards = generateCardsFromDocument(docId, folderId, content);
 
+    expect(cards.length).toBeGreaterThan(0);
+    const qaCards = cards.filter((c) => c.type === "qa");
+    expect(qaCards[0]?.front).toBe("Notes");
+  });
+
+  it("should return empty for completely empty content", () => {
+    const cards = generateCardsFromDocument(docId, folderId, "");
+
     expect(cards).toHaveLength(0);
+  });
+
+  it("should deduplicate bold terms within a section", () => {
+    const content = "## Topic\n**React** is great. **React** is fast.";
+
+    const cards = generateCardsFromDocument(docId, folderId, content);
+
+    const clozeCards = cards.filter((c) => c.type === "cloze");
+    expect(clozeCards).toHaveLength(1);
+  });
+
+  it("should generate definition cards from 'X is Y' patterns", () => {
+    const content = "## Concepts\n**Polymorphism** is the ability of objects to take many forms in programming.";
+
+    const cards = generateCardsFromDocument(docId, folderId, content);
+
+    const defCards = cards.filter((c) => c.type === "definition");
+    expect(defCards.length).toBeGreaterThanOrEqual(1);
+    expect(defCards[0]?.front).toContain("Polymorphism");
+  });
+
+  it("should generate list cards from sections with list items", () => {
+    const content = "## Benefits\n- Fast performance\n- Type safety\n- Great tooling";
+
+    const cards = generateCardsFromDocument(docId, folderId, content);
+
+    const listCards = cards.filter((c) => c.type === "list");
+    expect(listCards).toHaveLength(1);
+    expect(listCards[0]?.front).toContain("Benefits");
+    expect(listCards[0]?.back).toContain("Fast performance");
+  });
+});
+
+describe("generateCardsWithFeedback", () => {
+  const docId = "doc-1";
+  const folderId = "folder-1";
+
+  it("should return warnings for empty content", () => {
+    const result = generateCardsWithFeedback(docId, folderId, "");
+
+    expect(result.cards).toHaveLength(0);
+    expect(result.warnings.length).toBeGreaterThan(0);
+  });
+
+  it("should return no warnings for valid content", () => {
+    const result = generateCardsWithFeedback(docId, folderId, "## Topic\nSome content.");
+
+    expect(result.cards.length).toBeGreaterThan(0);
+    expect(result.warnings).toHaveLength(0);
   });
 });
 
@@ -105,5 +164,12 @@ describe("createManualCard", () => {
     const card = createManualCard("folder-1", "Q", "A");
 
     expect(card.documentId).toBeNull();
+  });
+
+  it("should trim whitespace from front and back", () => {
+    const card = createManualCard("folder-1", "  Question  ", "  Answer  ");
+
+    expect(card.front).toBe("Question");
+    expect(card.back).toBe("Answer");
   });
 });

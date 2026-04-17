@@ -3,11 +3,37 @@ import { useTranslation } from "react-i18next";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import Link from "@tiptap/extension-link";
+import Image from "@tiptap/extension-image";
+import { Table } from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableHeader from "@tiptap/extension-table-header";
+import TableCell from "@tiptap/extension-table-cell";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import Highlight from "@tiptap/extension-highlight";
+import Underline from "@tiptap/extension-underline";
+import TextAlign from "@tiptap/extension-text-align";
+import Typography from "@tiptap/extension-typography";
+import Superscript from "@tiptap/extension-superscript";
+import Subscript from "@tiptap/extension-subscript";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { Markdown } from "tiptap-markdown";
+import type { MarkdownStorage } from "tiptap-markdown";
+import { common, createLowlight } from "lowlight";
 import { useKnowledgeStore } from "@/stores/knowledge-store";
 import { EditorToolbar } from "./EditorToolbar";
 import type { KnowledgeDocument } from "@/tauri/knowledge";
 
+const lowlight = createLowlight(common);
+
 const AUTOSAVE_DELAY_MS = 1000;
+
+function getEditorMarkdown(editor: ReturnType<typeof useEditor>): string {
+  if (!editor) return "";
+  const store = editor.storage as unknown as Record<string, MarkdownStorage>;
+  return store.markdown?.getMarkdown() ?? editor.getHTML();
+}
 
 export function DocumentEditor() {
   const { t } = useTranslation();
@@ -17,11 +43,69 @@ export function DocumentEditor() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentDocIdRef = useRef<string | null>(null);
 
+  // Use refs so the onUpdate callback always has the latest values
+  const titleRef = useRef(title);
+  titleRef.current = title;
+  const tagsRef = useRef(doc?.tags ?? "");
+  tagsRef.current = doc?.tags ?? "";
+
+  const doSave = useCallback((docId: string, currentTitle: string, currentContent: string, currentTags: string) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void updateDocument(docId, currentTitle, currentContent, currentTags);
+    }, AUTOSAVE_DELAY_MS);
+  }, [updateDocument]);
+
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        codeBlock: false,
+      }),
       Placeholder.configure({
         placeholder: t("knowledge.editorPlaceholder"),
+      }),
+      Markdown.configure({
+        html: true,
+        tightLists: false,
+        linkify: true,
+        breaks: false,
+        transformPastedText: true,
+        transformCopiedText: true,
+      }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        linkOnPaste: true,
+        HTMLAttributes: {
+          class: "text-focus-600 dark:text-focus-400 underline cursor-pointer",
+        },
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+      }),
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+      Highlight.configure({
+        multicolor: true,
+      }),
+      Underline,
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+      }),
+      Typography,
+      Superscript,
+      Subscript,
+      CodeBlockLowlight.configure({
+        lowlight,
       }),
     ],
     editorProps: {
@@ -30,19 +114,13 @@ export function DocumentEditor() {
       },
     },
     onUpdate: ({ editor: ed }) => {
-      scheduleSave(title, ed.getHTML());
+      const docId = currentDocIdRef.current;
+      if (!docId) return;
+      const store = ed.storage as unknown as Record<string, MarkdownStorage>;
+      const content = store.markdown?.getMarkdown() ?? ed.getHTML();
+      doSave(docId, titleRef.current, content, tagsRef.current);
     },
   });
-
-  const scheduleSave = useCallback((currentTitle: string, currentContent: string) => {
-    if (!currentDocIdRef.current) return;
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-
-    const docId = currentDocIdRef.current;
-    saveTimerRef.current = setTimeout(() => {
-      void updateDocument(docId, currentTitle, currentContent, doc?.tags ?? "");
-    }, AUTOSAVE_DELAY_MS);
-  }, [updateDocument, doc?.tags]);
 
   // Load document when selection changes
   useEffect(() => {
@@ -75,10 +153,10 @@ export function DocumentEditor() {
 
   const handleTitleChange = useCallback((newTitle: string) => {
     setTitle(newTitle);
-    if (editor) {
-      scheduleSave(newTitle, editor.getHTML());
-    }
-  }, [editor, scheduleSave]);
+    const docId = currentDocIdRef.current;
+    if (!docId || !editor) return;
+    doSave(docId, newTitle, getEditorMarkdown(editor), tagsRef.current);
+  }, [editor, doSave]);
 
   if (!selectedDocumentId) {
     return (

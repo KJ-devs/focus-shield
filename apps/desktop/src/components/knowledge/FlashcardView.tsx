@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { FlashcardRecord } from "@/tauri/knowledge";
+import { MarkdownContent } from "./MarkdownContent";
 
 interface FlashcardViewProps {
   card: FlashcardRecord;
@@ -71,25 +72,21 @@ export function FlashcardView({ card, isFlipped, onFlip }: FlashcardViewProps) {
         >
           {/* Front */}
           <div
-            className="card-face absolute inset-0 flex items-center justify-center rounded-2xl border border-gray-200 bg-white p-8 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+            className="card-face absolute inset-0 flex items-center justify-center overflow-y-auto rounded-2xl border border-gray-200 bg-white p-8 shadow-lg dark:border-gray-700 dark:bg-gray-800"
             style={{ backfaceVisibility: "hidden" }}
           >
-            <p className="text-center text-xl font-medium leading-relaxed text-gray-900 dark:text-white">
-              {card.front}
-            </p>
+            <MarkdownContent content={card.front} className="text-center" />
           </div>
 
           {/* Back */}
           <div
-            className="card-back absolute inset-0 flex items-center justify-center rounded-2xl border border-focus-200 bg-focus-50 p-8 shadow-lg dark:border-focus-800 dark:bg-focus-900/20"
+            className="card-back absolute inset-0 flex items-center justify-center overflow-y-auto rounded-2xl border border-focus-200 bg-focus-50 p-8 shadow-lg dark:border-focus-800 dark:bg-focus-900/20"
             style={{
               backfaceVisibility: "hidden",
               transform: "rotateY(180deg)",
             }}
           >
-            <p className="text-center text-xl font-medium leading-relaxed text-gray-900 dark:text-white">
-              {card.back}
-            </p>
+            <MarkdownContent content={card.back} className="text-center" />
           </div>
         </div>
       </div>

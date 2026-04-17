@@ -7,6 +7,7 @@ import {
   knowledgeUpdateFlashcardReview,
 } from "@/tauri/knowledge";
 import type { FlashcardRecord } from "@/tauri/knowledge";
+import { MarkdownContent } from "./MarkdownContent";
 
 const MAX_CARDS = 5;
 
@@ -106,9 +107,7 @@ export function BreakFlashcards() {
             {isFlipped ? "Back" : "Front"}
           </span>
         </div>
-        <p className="text-sm font-medium text-gray-900 dark:text-white">
-          {isFlipped ? card.back : card.front}
-        </p>
+        <MarkdownContent content={isFlipped ? card.back : card.front} className="text-sm" />
       </button>
 
       {/* Actions */}

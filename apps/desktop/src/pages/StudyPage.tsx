@@ -7,6 +7,7 @@ import {
   knowledgeGetDueFlashcards,
   knowledgeUpdateFlashcardReview,
   knowledgeCreateReviewSession,
+  knowledgeDeleteFlashcard,
 } from "@/tauri/knowledge";
 import type { FlashcardRecord } from "@/tauri/knowledge";
 import { DeckSelector } from "@/components/knowledge/DeckSelector";
@@ -66,6 +67,7 @@ export function StudyPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [xpEarned, setXpEarned] = useState(0);
+  const [streak, setStreak] = useState(0);
 
   const startTimeRef = useRef(Date.now());
   const resolvedFolderId = folderId === "all" ? undefined : folderId;
@@ -99,6 +101,7 @@ export function StudyPage() {
     setWrong(0);
     setFinished(false);
     setXpEarned(0);
+    setStreak(0);
     startTimeRef.current = Date.now();
     void loadCards();
   }, [loadCards]);
@@ -122,19 +125,32 @@ export function StudyPage() {
     [resolvedFolderId],
   );
 
+  const advanceCard = useCallback(() => {
+    if (currentIndex + 1 >= cards.length) {
+      setFinished(true);
+      const earnedXp = correct * 5 + wrong * 2;
+      setXpEarned(earnedXp);
+      void saveReviewSession(cards.length, correct, wrong);
+      void useGamificationStore.getState().recordReviewXP(correct, wrong);
+    } else {
+      setCurrentIndex((i) => i + 1);
+      setIsFlipped(false);
+    }
+  }, [cards.length, currentIndex, correct, wrong, saveReviewSession]);
+
   const handleRate = useCallback(
     async (rating: ReviewRating) => {
       const card = cards[currentIndex];
       if (!card) return;
 
       const isCorrectRating = rating === "good" || rating === "easy";
-      const newCorrect = correct + (isCorrectRating ? 1 : 0);
-      const newWrong = wrong + (isCorrectRating ? 0 : 1);
 
       if (isCorrectRating) {
-        setCorrect(newCorrect);
+        setCorrect((c) => c + 1);
+        setStreak((s) => s + 1);
       } else {
-        setWrong(newWrong);
+        setWrong((w) => w + 1);
+        setStreak(0);
       }
 
       const result = reviewCard(
@@ -154,19 +170,36 @@ export function StudyPage() {
         // IPC unavailable
       }
 
-      if (currentIndex + 1 >= cards.length) {
-        setFinished(true);
-        const earnedXp = newCorrect * 5 + newWrong * 2;
-        setXpEarned(earnedXp);
-        await saveReviewSession(cards.length, newCorrect, newWrong);
-        await useGamificationStore.getState().recordReviewXP(newCorrect, newWrong);
-      } else {
-        setCurrentIndex((i) => i + 1);
-        setIsFlipped(false);
-      }
+      advanceCard();
     },
-    [cards, currentIndex, correct, wrong, saveReviewSession],
+    [cards, currentIndex, advanceCard],
   );
+
+  const handleSkipCard = useCallback(() => {
+    advanceCard();
+  }, [advanceCard]);
+
+  const handleDeleteCard = useCallback(async () => {
+    const card = cards[currentIndex];
+    if (!card) return;
+
+    try {
+      await knowledgeDeleteFlashcard(card.id);
+      const newCards = cards.filter((_, i) => i !== currentIndex);
+      setCards(newCards);
+
+      if (newCards.length === 0) {
+        setFinished(true);
+        const earnedXp = correct * 5 + wrong * 2;
+        setXpEarned(earnedXp);
+      } else if (currentIndex >= newCards.length) {
+        setCurrentIndex(newCards.length - 1);
+      }
+      setIsFlipped(false);
+    } catch {
+      // IPC unavailable
+    }
+  }, [cards, currentIndex, correct, wrong]);
 
   const handleQuizComplete = useCallback(
     (quizCorrect: number, quizWrong: number) => {
@@ -202,7 +235,7 @@ export function StudyPage() {
     );
   }
 
-  if (cards.length === 0) {
+  if (cards.length === 0 && !finished) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -224,9 +257,17 @@ export function StudyPage() {
     <div className="flex flex-col gap-6 p-6">
       {/* Header with mode toggle */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          {t("study.title")}
-        </h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/study")}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clipRule="evenodd" /></svg>
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {t("study.title")}
+          </h1>
+        </div>
         <div className="flex overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
           <button
             onClick={() => { setMode("flashcard"); resetSession(); }}
@@ -271,6 +312,15 @@ export function StudyPage() {
             wrong={wrong}
           />
 
+          {/* Streak indicator */}
+          {streak >= 2 && (
+            <div className="text-center">
+              <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                {streak} streak!
+              </span>
+            </div>
+          )}
+
           <FlashcardView
             card={currentCard}
             isFlipped={isFlipped}
@@ -283,13 +333,31 @@ export function StudyPage() {
               intervals={previewIntervals(currentCard)}
             />
           )}
+
+          {/* Card actions — skip & delete */}
+          <div className="mx-auto flex items-center gap-4">
+            <button
+              onClick={handleSkipCard}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M3.288 4.819A1.5 1.5 0 001 6.095v7.81a1.5 1.5 0 002.288 1.277l5.212-3.906v3.906a1.5 1.5 0 002.288 1.277l5.212-3.906a1.5 1.5 0 000-2.553L10.788 4.82A1.5 1.5 0 008.5 6.094v3.906L3.288 4.82z"/></svg>
+              Skip
+            </button>
+            <button
+              onClick={() => void handleDeleteCard()}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd"/></svg>
+              Delete card
+            </button>
+          </div>
         </div>
       )}
 
       {/* Flashcard complete */}
       {mode === "flashcard" && finished && (
         <StudyComplete
-          total={cards.length}
+          total={correct + wrong}
           correct={correct}
           wrong={wrong}
           elapsedMs={Date.now() - startTimeRef.current}

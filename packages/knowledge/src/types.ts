@@ -19,7 +19,7 @@ export interface KnowledgeDocument {
   updatedAt: Date;
 }
 
-export type FlashcardType = "basic" | "cloze" | "qa";
+export type FlashcardType = "basic" | "cloze" | "qa" | "definition" | "list";
 
 export interface Flashcard {
   id: string;
@@ -56,8 +56,12 @@ export interface ReviewSession {
   wrongCount: number;
 }
 
+export type QuizQuestionType = "mcq" | "truefalse" | "fillin";
+
 export interface QuizQuestion {
   card: Flashcard;
+  questionType: QuizQuestionType;
+  questionText: string;
   choices: string[];
   correctIndex: number;
 }
